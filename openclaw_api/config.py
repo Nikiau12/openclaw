@@ -1,0 +1,3 @@
+import os
+
+MEXC_SYMBOL_DEFAULT = os.getenv("MEXC_SYMBOL_DEFAULT", "BTC_USDT")
