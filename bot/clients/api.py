@@ -1,7 +1,8 @@
-import os
 import aiohttp
 import re
+from typing import Any, Dict, Optional
 
+from bot.config import OPENCLAW_API_URL
 
 def _normalize_base_url(base: str) -> str:
     base = (base or "").strip().rstrip("/")
@@ -11,20 +12,23 @@ def _normalize_base_url(base: str) -> str:
         base = "https://" + base
     return base
 
+BASE_URL = _normalize_base_url(OPENCLAW_API_URL)
 
-API_URL = os.getenv("OPENCLAW_API_URL", "").rstrip("/")
+async def post(path: str, payload: Optional[Dict[str, Any]] = None, timeout_s: int = 30) -> Dict[str, Any]:
+    if not BASE_URL:
+        raise RuntimeError("OPENCLAW_API_URL is empty")
 
-class APIError(RuntimeError):
-    pass
+    path = "/" + path.lstrip("/")
+    url = f"{BASE_URL}{path}"
 
-async def post(path: str, payload: dict) -> dict:
-    if not API_URL:
-        raise APIError("OPENCLAW_API_URL is empty (set Railway Variable).")
-    url = f"{API_URL}{path}"
-    timeout = aiohttp.ClientTimeout(total=30)
-    async with aiohttp.ClientSession(timeout=timeout) as s:
-        async with s.post(url, json=payload) as r:
+    t = aiohttp.ClientTimeout(total=timeout_s)
+    async with aiohttp.ClientSession(timeout=t) as s:
+        async with s.post(url, json=(payload or {})) as r:
+            # если API вернул ошибку — покажем тело
             text = await r.text()
             if r.status >= 400:
-                raise APIError(f"{r.status}: {text[:300]}")
-            return await r.json()
+                raise RuntimeError(f"API {r.status}: {text}")
+            try:
+                return await r.json()
+            except Exception:
+                return {"ok": True, "raw": text}
