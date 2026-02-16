@@ -12,6 +12,11 @@ def _normalize_base_url(base: str) -> str:
         base = "https://" + base
     return base
 
+
+
+class APIError(Exception):
+    pass
+
 BASE_URL = _normalize_base_url(OPENCLAW_API_URL)
 
 async def post(path: str, payload: Optional[Dict[str, Any]] = None, timeout_s: int = 30) -> Dict[str, Any]:
