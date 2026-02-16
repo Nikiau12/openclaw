@@ -2,14 +2,16 @@ import asyncio
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from bot.config import TELEGRAM_BOT_TOKEN
-from bot.handlers.chat import router
+from bot.handlers.chat import router as chat_router
+from bot.handlers.market import router as market_router
 
 async def main():
     if not TELEGRAM_BOT_TOKEN:
         raise SystemExit("TELEGRAM_BOT_TOKEN is empty")
     bot = Bot(token=TELEGRAM_BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
     dp = Dispatcher()
-    dp.include_router(router)
+    dp.include_router(chat_router)
+    dp.include_router(market_router)
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
