@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+
+from openclaw_api import mexc
 from typing import Optional, Dict, Any
 
 app = FastAPI(title="OpenClaw API")
@@ -47,3 +49,16 @@ def plan(req: PlanReq) -> Dict[str, Any]:
         "🚨 <b>Риск-правило</b>: стоп обязателен.\n"
     )
     return {"ok": True, "message_html": msg}
+
+
+@app.get("/mexc/symbols")
+def mexc_symbols(limit: int = 2000):
+    symbols, _raw = mexc.load_symbols(force=False)
+    arr = sorted(list(symbols))
+    return {"ok": True, "count": len(arr), "symbols": arr[: int(limit)]}
+
+@app.get("/mexc/resolve")
+def mexc_resolve(input: str):
+    sym = mexc.resolve_symbol(input)
+    return {"ok": True, "input": input, "symbol": sym}
+
