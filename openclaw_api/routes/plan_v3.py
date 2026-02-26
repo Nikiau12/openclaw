@@ -162,10 +162,10 @@ async def plan_v3(req: PlanRequest):
         else:
             trigger = None
             invalidation = None
-
         msg = (
             f"📌 <b>{req.symbol}</b> → <code>{sym}</code>\n"
-            f"{icon} <b>Bias</b>: {bias}\n"f"{tf_line}"
+            f"{icon} <b>Bias</b>: {bias}\n"
+            f"{tf_line}"
             f"{reasons_line}\n"
             f"💰 <b>Last</b>: <code>{last:.2f}</code>\n"
             f"📈 <b>24h</b>: <code>{change_pct:+.2f}%</code>\n"
