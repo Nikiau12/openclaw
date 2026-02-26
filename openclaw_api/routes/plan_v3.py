@@ -62,6 +62,7 @@ async def plan_v3(req: PlanRequest):
         # real bias (same logic as /signals/bias/v1): EMA(9/21) + RSI(14), weighted 1D>4H>1H
         score_total = 0
         weight_total = 0
+        per_tf: list[dict] = []
 
         for tf in req.timeframes:
             raw = await p.klines(sym, interval=tf, limit=req.limit)
@@ -74,15 +75,19 @@ async def plan_v3(req: PlanRequest):
 
             i = len(closes) - 1
             if i < 0 or e_fast[i] is None or e_slow[i] is None or r[i] is None:
+                per_tf.append({"tf": tf, "ok": False})
                 continue
 
+            ef = float(e_fast[i])
+            es = float(e_slow[i])
+            rsi_v = float(r[i])
+
             s = 0
-            if float(e_fast[i]) > float(e_slow[i]):
+            if ef > es:
                 s += 1
-            elif float(e_fast[i]) < float(e_slow[i]):
+            elif ef < es:
                 s -= 1
 
-            rsi_v = float(r[i])
             if rsi_v >= 55:
                 s += 1
             elif rsi_v <= 45:
@@ -91,6 +96,16 @@ async def plan_v3(req: PlanRequest):
             w = tf_weight(tf)
             score_total += s * w
             weight_total += w
+
+            per_tf.append({
+                "tf": tf,
+                "ok": True,
+                "score": s,
+                "weight": w,
+                "ema9": ef,
+                "ema21": es,
+                "rsi14": rsi_v,
+            })
 
         if weight_total == 0:
             bias = "NEUTRAL"
@@ -103,6 +118,18 @@ async def plan_v3(req: PlanRequest):
                 bias = "NEUTRAL"
 
         icon = {"BULLISH": "🟩", "BEARISH": "🟥", "NEUTRAL": "🟦"}[bias]
+
+        # explanation line (compact)
+        parts = []
+        for x in per_tf:
+            if not x.get("ok"):
+                continue
+            tf = str(x["tf"]).upper()
+            sc = int(x["score"])
+            parts.append(f"{tf}:{sc:+d}")
+        tf_line = ""
+        if parts:
+            tf_line = f"📊 <b>TF</b>: {' | '.join(parts)} → <code>{score_total}/{weight_total}</code>\n"
 
         # уровни на базе ATR старшего TF
         if atr_ref is not None:
@@ -123,7 +150,7 @@ async def plan_v3(req: PlanRequest):
 
         msg = (
             f"📌 <b>{req.symbol}</b> → <code>{sym}</code>\n"
-            f"{icon} <b>Bias</b>: {bias}\n\n"
+            f"{icon} <b>Bias</b>: {bias}\n"f"{tf_line}\n"
             f"💰 <b>Last</b>: <code>{last:.2f}</code>\n"
             f"📈 <b>24h</b>: <code>{change_pct:+.2f}%</code>\n"
             f"🌊 <b>QuoteVol</b>: <code>{quote_vol:,.0f}</code>\n"
