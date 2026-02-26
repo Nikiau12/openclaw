@@ -56,42 +56,6 @@ class MexcSpot(SpotProvider):
 
     async def summary_24h(self, symbol: str) -> dict:
         return await self._get("/api/v3/ticker/24hr", params={"symbol": symbol})
-    def _normalize_interval(self, interval: str) -> str:
-        """
-        Accepts friendly TF: 1h, 4h, 1d, 15m etc.
-        Converts to MEXC Spot interval codes.
-        """
-        x = interval.strip().lower()
-
-        # common aliases
-        aliases = {
-            "60m": "1h",
-            "240m": "4h",
-            "1440m": "1d",
-        }
-        x = aliases.get(x, x)
-
-        # MEXC spot tends to accept minute-based for intraday. Keep safe mapping.
-        mapping = {
-            "1m": "1m",
-            "3m": "3m",
-            "5m": "5m",
-            "15m": "15m",
-            "30m": "30m",
-            "1h": "60m",
-            "2h": "120m",
-            "4h": "240m",
-            "6h": "360m",
-            "8h": "480m",
-            "12h": "720m",
-            "1d": "1d",
-            "1w": "1w",
-        }
-        if x not in mapping:
-            raise ValueError(f"Unsupported interval: {interval}")
-        return mapping[x]
-
     async def klines(self, symbol: str, interval: str, limit: int = 300) -> list[list]:
         # MEXC: /api/v3/klines
-        iv = self._normalize_interval(interval)
-        return await self._get("/api/v3/klines", params={"symbol": symbol, "interval": iv, "limit": limit})
+        return await self._get("/api/v3/klines", params={"symbol": symbol, "interval": interval, "limit": limit})
