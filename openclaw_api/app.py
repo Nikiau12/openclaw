@@ -4,7 +4,9 @@ from pydantic import BaseModel
 from openclaw_api import mexc
 from typing import Optional, Dict, Any
 
+from openclaw_api.routes.mexc_spot import router as mexc_spot_router
 app = FastAPI(title="OpenClaw API")
+app.include_router(mexc_spot_router)
 
 @app.get("/health")
 def health():
