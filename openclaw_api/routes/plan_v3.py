@@ -131,6 +131,21 @@ async def plan_v3(req: PlanRequest):
         if parts:
             tf_line = f"📊 <b>TF</b>: {' | '.join(parts)} → <code>{score_total}/{weight_total}</code>\n"
 
+        # compact drivers line (show top weighted TFs first)
+        reasons = []
+        # sort by weight desc (1D > 4H > 1H)
+        for x in sorted([z for z in per_tf if z.get("ok")], key=lambda k: int(k.get("weight", 0)), reverse=True):
+            tfu = str(x["tf"]).upper()
+            ef = float(x["ema9"])
+            es = float(x["ema21"])
+            rv = float(x["rsi14"])
+            rel = ">" if ef > es else "<" if ef < es else "="
+            reasons.append(f"{tfu} EMA9{rel}EMA21, RSI {rv:.0f}")
+
+        reasons_line = ""
+        if reasons:
+            reasons_line = f"🧩 <b>Drivers</b>: {' | '.join(reasons[:2])}\n"
+
         # уровни на базе ATR старшего TF
         if atr_ref is not None:
             # conservative: trigger = last + 0.5*ATR (bullish) / last - 0.5*ATR (bearish)
@@ -150,7 +165,8 @@ async def plan_v3(req: PlanRequest):
 
         msg = (
             f"📌 <b>{req.symbol}</b> → <code>{sym}</code>\n"
-            f"{icon} <b>Bias</b>: {bias}\n"f"{tf_line}\n"
+            f"{icon} <b>Bias</b>: {bias}\n"f"{tf_line}"
+            f"{reasons_line}\n"
             f"💰 <b>Last</b>: <code>{last:.2f}</code>\n"
             f"📈 <b>24h</b>: <code>{change_pct:+.2f}%</code>\n"
             f"🌊 <b>QuoteVol</b>: <code>{quote_vol:,.0f}</code>\n"
