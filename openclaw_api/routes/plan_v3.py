@@ -64,7 +64,7 @@ async def plan_v3(req: PlanRequest):
             ef = float(x["ema9"])
             es = float(x["ema21"])
             rv = float(x["rsi14"])
-            rel = ">" if ef > es else "<" if ef < es else "="
+            rel = "&gt;" if ef > es else "&lt;" if ef < es else "="
             reasons.append(f"{_tf_label(x['tf'])} EMA9{rel}EMA21, RSI {rv:.0f}")
         reasons_line = ""
         if reasons:
