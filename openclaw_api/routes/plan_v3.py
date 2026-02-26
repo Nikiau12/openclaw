@@ -145,20 +145,38 @@ async def plan_v3(req: PlanRequest):
         reasons_line = ""
         if reasons:
             reasons_line = f"🧩 <b>Drivers</b>: {' | '.join(reasons[:2])}\n"
-
-        # уровни на базе ATR старшего TF
+        # levels based on ATR from the highest available TF
         if atr_ref is not None:
-            # conservative: trigger = last + 0.5*ATR (bullish) / last - 0.5*ATR (bearish)
-            # invalidation = last - 1.5*ATR / last + 1.5*ATR
+            # baseline distances (tunable later)
+            k_trig = 0.5
+            k_inv = 1.5
+
             if bias == "BULLISH":
-                trigger = last + 0.5 * atr_ref
-                invalidation = last - 1.5 * atr_ref
+                trigger = last + k_trig * atr_ref
+                invalidation = last - k_inv * atr_ref
+                scenarios = None
             elif bias == "BEARISH":
-                trigger = last - 0.5 * atr_ref
-                invalidation = last + 1.5 * atr_ref
+                trigger = last - k_trig * atr_ref
+                invalidation = last + k_inv * atr_ref
+                scenarios = None
             else:
+                # NEUTRAL: provide both scenarios
                 trigger = None
                 invalidation = None
+                scenarios = {
+                    "long": {
+                        "trigger": last + k_trig * atr_ref,
+                        "invalidation": last - k_inv * atr_ref,
+                    },
+                    "short": {
+                        "trigger": last - k_trig * atr_ref,
+                        "invalidation": last + k_inv * atr_ref,
+                    },
+                }
+        else:
+            trigger = None
+            invalidation = None
+            scenarios = None
         else:
             trigger = None
             invalidation = None
@@ -178,6 +196,23 @@ async def plan_v3(req: PlanRequest):
             msg += (
                 f"\n🎯 <b>Trigger</b>: <code>{trigger:.2f}</code>\n"
                 f"🧯 <b>Invalidation</b>: <code>{invalidation:.2f}</code>\n"
+            )
+
+        
+        # render levels
+        if scenarios is None:
+            if trigger is not None and invalidation is not None:
+                msg += (
+                    f"\n🎯 <b>Trigger</b>: <code>{trigger:.2f}</code>\n"
+                    f"🧯 <b>Invalidation</b>: <code>{invalidation:.2f}</code>\n"
+                )
+        else:
+            lg = scenarios["long"]
+            sh = scenarios["short"]
+            msg += (
+                f"\n🧭 <b>Scenarios</b> (ATR-based)\n"
+                f"🟩 <b>LONG</b>  trigger: <code>{lg['trigger']:.2f}</code> | invalid: <code>{lg['invalidation']:.2f}</code>\n"
+                f"🟥 <b>SHORT</b> trigger: <code>{sh['trigger']:.2f}</code> | invalid: <code>{sh['invalidation']:.2f}</code>\n"
             )
 
         msg += "\n🚨 <b>Риск-правило</b>: стоп обязателен.\n"
