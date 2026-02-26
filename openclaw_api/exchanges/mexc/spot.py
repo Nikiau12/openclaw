@@ -39,7 +39,7 @@ class MexcSpot(SpotProvider):
         return out
 
     async def resolve_symbol(self, raw: str) -> str:
-        raw_u = raw.strip().upper().replace("/", "").replace("-", "").replace("_", "")
+        raw_u = raw.strip().upper().replace("/", "").replace("-", "").replace("_", "").replace("_", "")
         symbols = await self.list_symbols()
 
         for s in symbols:
