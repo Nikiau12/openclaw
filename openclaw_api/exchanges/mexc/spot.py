@@ -58,32 +58,38 @@ class MexcSpot(SpotProvider):
         return await self._get("/api/v3/ticker/24hr", params={"symbol": symbol})
     def _normalize_interval(self, interval: str) -> str:
         """
-        MEXC Spot supported intervals (docs):
-        1m, 5m, 15m, 30m, 60m, 4h, 1d, 1W, 1M
-        We accept friendly aliases like: 1h -> 60m.
+        Accepts friendly TF: 1h, 4h, 1d, 15m etc.
+        Converts to MEXC Spot interval codes.
         """
-        x = interval.strip()
+        x = interval.strip().lower()
 
-        # normalize case
-        xl = x.lower()
+        # common aliases
+        aliases = {
+            "60m": "1h",
+            "240m": "4h",
+            "1440m": "1d",
+        }
+        x = aliases.get(x, x)
 
-        # friendly aliases -> mexc
-        if xl == "1h":
-            return "60m"
-        if xl == "1d":
-            return "1d"
-        if xl == "4h":
-            return "4h"
-        if xl in {"1w", "1week"}:
-            return "1W"
-        if xl in {"1m", "5m", "15m", "30m", "60m"}:
-            return xl
-        if xl in {"1mo", "1month"}:
-            return "1M"
-        if x in {"1W", "1M"}:  # already correct
-            return x
-
-        raise ValueError(f"Unsupported interval for MEXC spot: {interval}")
+        # MEXC spot tends to accept minute-based for intraday. Keep safe mapping.
+        mapping = {
+            "1m": "1m",
+            "3m": "3m",
+            "5m": "5m",
+            "15m": "15m",
+            "30m": "30m",
+            "1h": "60m",
+            "2h": "120m",
+            "4h": "240m",
+            "6h": "360m",
+            "8h": "480m",
+            "12h": "720m",
+            "1d": "1d",
+            "1w": "1w",
+        }
+        if x not in mapping:
+            raise ValueError(f"Unsupported interval: {interval}")
+        return mapping[x]
 
     async def klines(self, symbol: str, interval: str, limit: int = 300) -> list[list]:
         # MEXC: /api/v3/klines
