@@ -56,3 +56,6 @@ class MexcSpot(SpotProvider):
 
     async def summary_24h(self, symbol: str) -> dict:
         return await self._get("/api/v3/ticker/24hr", params={"symbol": symbol})
+    async def klines(self, symbol: str, interval: str, limit: int = 300) -> list[list]:
+        # MEXC: /api/v3/klines
+        return await self._get("/api/v3/klines", params={"symbol": symbol, "interval": interval, "limit": limit})
