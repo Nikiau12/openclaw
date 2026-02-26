@@ -51,6 +51,100 @@ class BiasRequest(BaseModel):
     limit: int = 300
 
 
+
+async def compute_bias(
+    *,
+    symbol: str,
+    timeframes: list[str],
+    limit: int = 300,
+) -> dict:
+    """
+    Core bias engine used by both /signals/bias/v1 and /plan/v3.
+    Returns: {bias, score_total, weight_total, per_tf:[...]}
+    """
+    sym = normalize_symbol(symbol)
+
+    per_tf = []
+    score_total = 0
+    weight_total = 0
+
+    async with httpx.AsyncClient(timeout=12.0) as client:
+        for tf in timeframes:
+            iv = normalize_interval(tf)
+            r = await client.get(
+                f"{MEXC_BASE}/api/v3/klines",
+                params={"symbol": sym, "interval": iv, "limit": limit},
+            )
+            r.raise_for_status()
+            raw = r.json()
+
+            c = drop_unclosed_tail(parse_mexc_klines(raw))
+            closes = c.c
+            if not closes:
+                per_tf.append({"tf": tf, "ok": False})
+                continue
+
+            e_fast = ema(closes, 9)
+            e_slow = ema(closes, 21)
+            rv = rsi(closes, 14)
+            av = atr(c.h, c.l, closes, 14)
+
+            idx = len(closes) - 1
+            if e_fast[idx] is None or e_slow[idx] is None or rv[idx] is None or av[idx] is None:
+                per_tf.append({"tf": tf, "ok": False})
+                continue
+
+            ef = float(e_fast[idx])
+            es = float(e_slow[idx])
+            rsi_v = float(rv[idx])
+            atr_v = float(av[idx])
+            last = float(closes[idx])
+
+            s = 0
+            if ef > es:
+                s += 1
+            elif ef < es:
+                s -= 1
+
+            if rsi_v >= 55:
+                s += 1
+            elif rsi_v <= 45:
+                s -= 1
+
+            w = tf_weight(tf)
+            score_total += s * w
+            weight_total += w
+
+            per_tf.append({
+                "tf": tf,
+                "ok": True,
+                "last": last,
+                "ema9": ef,
+                "ema21": es,
+                "rsi14": rsi_v,
+                "atr14": atr_v,
+                "score": s,
+                "weight": w,
+            })
+
+    if weight_total == 0:
+        bias = "NEUTRAL"
+    else:
+        if score_total >= weight_total:
+            bias = "BULLISH"
+        elif score_total <= -weight_total:
+            bias = "BEARISH"
+        else:
+            bias = "NEUTRAL"
+
+    return {
+        "symbol": sym,
+        "bias": bias,
+        "score_total": score_total,
+        "weight_total": weight_total,
+        "per_tf": per_tf,
+    }
+
 @router.post("/bias/v1")
 async def bias_v1(req: BiasRequest):
     try:
