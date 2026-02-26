@@ -6,6 +6,8 @@ from pydantic import BaseModel
 from openclaw_api.exchanges.registry import get_mexc_spot
 from openclaw_api.indicators.candles import parse_mexc_klines, drop_unclosed_tail
 from openclaw_api.indicators.atr import atr
+from openclaw_api.indicators.ema import ema
+from openclaw_api.indicators.rsi import rsi
 
 
 router = APIRouter(tags=["plan"])
@@ -57,20 +59,50 @@ async def plan_v3(req: PlanRequest):
             elif atr_ref is None:
                 atr_ref = float(a[i])
 
-        # bias получаем через готовый endpoint? нет, в plan важен только итог:
-        # (чтобы не дублировать весь расчёт — bias можно дергать отдельно в UI бота позже)
-        # Пока используем упрощение: если change_24h > 0.5 => bullish, < -0.5 => bearish, иначе neutral
-        # Реальный bias будет читаться из /signals/bias/v1 ботом на следующем шаге.
-        # (Сейчас оставим совместимость и не увеличим latency планом.)
-        if change_pct > 0.5:
-            bias = "BULLISH"
-            icon = "🟩"
-        elif change_pct < -0.5:
-            bias = "BEARISH"
-            icon = "🟥"
-        else:
+        # real bias (same logic as /signals/bias/v1): EMA(9/21) + RSI(14), weighted 1D>4H>1H
+        score_total = 0
+        weight_total = 0
+
+        for tf in req.timeframes:
+            raw = await p.klines(sym, interval=tf, limit=req.limit)
+            c_tf = drop_unclosed_tail(parse_mexc_klines(raw))
+            closes = c_tf.c
+
+            e_fast = ema(closes, 9)
+            e_slow = ema(closes, 21)
+            r = rsi(closes, 14)
+
+            i = len(closes) - 1
+            if i < 0 or e_fast[i] is None or e_slow[i] is None or r[i] is None:
+                continue
+
+            s = 0
+            if float(e_fast[i]) > float(e_slow[i]):
+                s += 1
+            elif float(e_fast[i]) < float(e_slow[i]):
+                s -= 1
+
+            rsi_v = float(r[i])
+            if rsi_v >= 55:
+                s += 1
+            elif rsi_v <= 45:
+                s -= 1
+
+            w = tf_weight(tf)
+            score_total += s * w
+            weight_total += w
+
+        if weight_total == 0:
             bias = "NEUTRAL"
-            icon = "🟦"
+        else:
+            if score_total >= weight_total:
+                bias = "BULLISH"
+            elif score_total <= -weight_total:
+                bias = "BEARISH"
+            else:
+                bias = "NEUTRAL"
+
+        icon = {"BULLISH": "🟩", "BEARISH": "🟥", "NEUTRAL": "🟦"}[bias]
 
         # уровни на базе ATR старшего TF
         if atr_ref is not None:
