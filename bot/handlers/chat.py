@@ -1,19 +1,40 @@
 import asyncio
 from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from bot.clients.api import get, post, APIError
 
 router = Router()
 
 @router.message(Command("start"))
 async def start(m: Message):
-    await m.answer(
-        "Привет 👋\n"
-        "Пиши вопрос обычным текстом.\n"
-        "Команда: /plan BTC_USDT — получить план.\n",
-        parse_mode="HTML"
+    kb = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="/top"), KeyboardButton(text="/scan")],
+            [KeyboardButton(text="/plan BTC_USDT")],
+            [KeyboardButton(text="📘 Полный гайд")],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        input_field_placeholder="Выбери команду или напиши текст…",
     )
+
+    guide = (
+        "<b>OpenClaw — бот для крипто-аналитики</b> (не торговый совет).\n\n"
+        "<b>Команды:</b>\n"
+        "• <code>/top</code> — топ ликвидных монет\n"
+        "• <code>/scan</code> — где сейчас всплеск объёма\n"
+        "• <code>/plan BTC_USDT</code> — план по монете (Bias + сценарии)\n\n"
+        "Сценарий для новичка:\n"
+        "1) <code>/scan</code> → выбери тикер\n"
+        "2) <code>/plan TICKER</code> → посмотри Bias и уровни\n"
+        "3) Если Bias NEUTRAL → смотри 2 сценария (LONG/SHORT)\n\n"
+        "Нужны детали? Нажми <b>📘 Полный гайд</b>."
+    )
+
+    await m.answer(guide, parse_mode="HTML", reply_markup=kb)
+
+
 
 @router.message(Command("plan"))
 async def plan(m: Message):
