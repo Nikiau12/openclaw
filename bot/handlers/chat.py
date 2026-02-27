@@ -1,7 +1,7 @@
 import asyncio
 from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from bot.clients.api import get, post, APIError
 
 router = Router()
@@ -11,28 +11,27 @@ async def start(m: Message):
     kb = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="/top"), KeyboardButton(text="/scan")],
-            [KeyboardButton(text="/plan BTC_USDT")],
-            [KeyboardButton(text="📘 Полный гайд")],
+            [KeyboardButton(text="/plan BTC_USDT"), KeyboardButton(text="/plan ETH_USDT")],
+            [KeyboardButton(text="📘 Полный гайд"), KeyboardButton(text="🧪 Примеры")],
+            [KeyboardButton(text="❌ Скрыть кнопки")],
         ],
         resize_keyboard=True,
         one_time_keyboard=False,
         input_field_placeholder="Выбери команду или напиши текст…",
     )
 
-    guide = (
-        "<b>OpenClaw — бот для крипто-аналитики</b> (не торговый совет).\n\n"
-        "<b>Команды:</b>\n"
-        "• <code>/top</code> — топ ликвидных монет\n"
-        "• <code>/scan</code> — где сейчас всплеск объёма\n"
-        "• <code>/plan BTC_USDT</code> — план по монете (Bias + сценарии)\n\n"
-        "Сценарий для новичка:\n"
-        "1) <code>/scan</code> → выбери тикер\n"
-        "2) <code>/plan TICKER</code> → посмотри Bias и уровни\n"
-        "3) Если Bias NEUTRAL → смотри 2 сценария (LONG/SHORT)\n\n"
-        "Нужны детали? Нажми <b>📘 Полный гайд</b>."
+    hello = "Привет 👋 Я <b>OpenClaw</b>. Помогаю быстро читать рынок и находить активность."
+    quick = (
+        "<b>Быстрый старт</b>\n"
+        "1) <code>/scan</code> → где сейчас всплеск объёма\n"
+        "2) <code>/plan TICKER</code> → Bias 1H/4H/1D + сценарии\n"
+        "3) <code>/top</code> → топ ликвидных монет\n\n"
+        "Нужны детали — нажми <b>📘 Полный гайд</b>.\n"
+        "Кнопки можно убрать: <b>❌ Скрыть кнопки</b>."
     )
 
-    await m.answer(guide, parse_mode="HTML", reply_markup=kb)
+    await m.answer(hello, parse_mode="HTML")
+    await m.answer(quick, parse_mode="HTML", reply_markup=kb)
 
 
 
@@ -213,55 +212,114 @@ async def scan(m: Message):
 @router.message(F.text == "📘 Полный гайд")
 async def full_guide(m: Message):
     guide = (
-        "<b>OpenClaw — подробный гайд</b>\n"
-        "<i>Это аналитика, не торговый совет.</i>\n\n"
+        "<b>📘 OpenClaw — полный гайд для новичков</b>\n"
+        "<i>Это аналитика, не торговый совет. Решение и риск — на тебе.</i>\n\n"
 
-        "<b>Команда /top [N]</b>\n"
-        "Показывает топ монет USDT по объёму за 24ч (quoteVolume).\n"
-        "Зачем: выбирать ликвидные монеты, где обычно проще вход/выход.\n"
-        "Примеры: <code>/top</code>, <code>/top 20</code>\n\n"
+        "<b>Зачем бот нужен</b>\n"
+        "OpenClaw делает 3 вещи:\n"
+        "1) показывает, <b>где прямо сейчас пошёл объём</b> (/scan)\n"
+        "2) показывает <b>тренд на старших таймфреймах</b> (/plan)\n"
+        "3) помогает выбирать <b>ликвидные монеты</b> (/top)\n\n"
 
-        "<b>Команда /scan [tf] [spike] [N]</b>\n"
-        "Ищет монеты, где объём последней свечи на выбранном TF резко выше нормы.\n"
-        "Spike — это: <b>объём последней свечи</b> / <b>средний объём прошлых свечей</b>.\n"
-        "Примеры: <code>/scan</code>, <code>/scan 1h 3 20</code>\n"
-        "Как понимать spike:\n"
-        "• 2–3×: оживление\n"
+        "━━━━━━━━━━━━━━\n"
+        "<b>1) /top [N]</b> — топ ликвидности\n"
+        "• <b>Что это:</b> список монет USDT по объёму торгов за 24ч.\n"
+        "• <b>Зачем:</b> на ликвидных монетах обычно проще войти/выйти.\n"
+        "• <b>Как:</b> <code>/top</code> или <code>/top 20</code>\n\n"
+
+        "Как читать строку в /top:\n"
+        "• <code>+/- %</code> — изменение цены за 24 часа\n"
+        "• <code>last</code> — текущая цена\n"
+        "• <code>vol</code> — объём за 24 часа в USDT (чем больше — тем обычно “живее” рынок)\n\n"
+
+        "━━━━━━━━━━━━━━\n"
+        "<b>2) /scan [tf] [spike] [N]</b> — поиск всплеска объёма\n"
+        "• <b>Что это:</b> бот ищет монеты, где объём последней свечи выше нормы.\n"
+        "• <b>Зачем:</b> всплеск объёма часто означает, что “что-то началось”.\n"
+        "• <b>Примеры:</b>\n"
+        "  <code>/scan</code> (по умолчанию 15m, spike≥2.5, top 10)\n"
+        "  <code>/scan 1h 3 20</code> (часовой всплеск ≥3×, показать 20)\n\n"
+
+        "<b>Что значит spike 2.87×</b>\n"
+        "Это формула:\n"
+        "<code>spike = volume(последняя свеча) / avg(volume прошлых свечей)</code>\n"
+        "Пример: <code>3×</code> = объём сейчас примерно в 3 раза выше обычного.\n\n"
+
+        "<b>Как интерпретировать spike</b>\n"
+        "• 2–3×: заметное оживление\n"
         "• 3–5×: сильный импульс\n"
         "• >5×: часто новости/манипуляции — осторожно\n\n"
 
-        "<b>Команда /plan &lt;symbol&gt;</b>\n"
-        "Даёт план по монете и контекст рынка на старших TF: 1H/4H/1D.\n"
-        "Показывает 24h сводку (цена/изменение/объём), Bias и уровни.\n"
-        "Примеры: <code>/plan BTC_USDT</code>, <code>/plan ETHUSDT</code>, <code>/plan sol-usdt</code>\n\n"
+        "<b>Важно:</b> spike не говорит “покупай”. Он говорит “тут активность”.\n"
+        "Дальше ты проверяешь контекст через /plan.\n\n"
 
-        "<b>Как читать Bias</b>\n"
-        "Bias бывает: 🟩 BULLISH / 🟥 BEARISH / 🟦 NEUTRAL.\n"
-        "Он считается по EMA(9/21) + RSI(14) на закрытых свечах (no repaint),\n"
-        "с приоритетом старших TF (1D важнее 4H, 4H важнее 1H).\n\n"
+        "━━━━━━━━━━━━━━\n"
+        "<b>3) /plan &lt;symbol&gt;</b> — план по монете\n"
+        "• <b>Что это:</b> контекст + тренд 1H/4H/1D + уровни.\n"
+        "• <b>Примеры:</b> <code>/plan BTC_USDT</code>, <code>/plan ETH_USDT</code>, <code>/plan sol-usdt</code>\n\n"
 
-        "<b>📊 TF line</b>\n"
-        "Показывает, как “проголосовали” TF:\n"
-        "<code>1H:+2 | 4H:+2 | 1D:-2 → 0/6</code>\n"
-        "Каждый TF даёт score от -2 до +2:\n"
-        "• EMA9>EMA21 даёт +1, EMA9<EMA21 даёт -1\n"
-        "• RSI≥55 даёт +1, RSI≤45 даёт -1\n"
-        "Дальше суммируется с весами (1D=3, 4H=2, 1H=1).\n\n"
+        "<b>Что внутри /plan</b>\n"
+        "A) <b>24h сводка</b>: Last, 24h%, QuoteVol, High/Low\n"
+        "B) <b>Bias</b>: 🟩 BULLISH / 🟥 BEARISH / 🟦 NEUTRAL\n"
+        "C) <b>Объяснение</b>: TF line + Drivers\n"
+        "D) <b>Уровни</b>: Trigger/Invalidation или 2 сценария (если Neutral)\n\n"
 
-        "<b>🧩 Drivers</b>\n"
-        "Коротко объясняет, что сильнее всего влияет на вердикт (обычно дневка).\n\n"
+        "<b>Bias простыми словами</b>\n"
+        "Bias — это “куда смотрит рынок” на старших ТФ.\n"
+        "Он считается по закрытым свечам (без подглядывания в будущее) с EMA/RSI.\n\n"
 
-        "<b>Уровни и сценарии</b>\n"
-        "Trigger — уровень, после которого сценарий считается активным.\n"
-        "Invalidation — уровень, при котором сценарий ломается.\n"
-        "Если Bias NEUTRAL, бот даёт 2 сценария: LONG и SHORT.\n\n"
+        "<b>📊 TF line</b> — как голосовали таймфреймы\n"
+        "Пример: <code>1H:+2 | 4H:+1 | 1D:-2 → -6/6</code>\n"
+        "• +2 = TF поддерживает рост\n"
+        "• -2 = TF поддерживает падение\n"
+        "• итог показывает, почему вердикт именно такой\n\n"
 
-        "<b>Рекомендуемый сценарий использования</b>\n"
-        "1) <code>/scan</code> → выбрал тикер\n"
-        "2) <code>/plan TICKER</code> → понял Bias и сценарии\n"
-        "3) Дальше действуешь по своей стратегии и риск-менеджменту.\n"
+        "<b>🧩 Drivers</b> — короткая причина\n"
+        "Показывает, какие TF сильнее всего влияют на итог.\n\n"
+
+        "<b>Trigger / Invalidation</b>\n"
+        "• <b>Trigger</b> — уровень, после которого сценарий считается “активным”.\n"
+        "• <b>Invalidation</b> — уровень, где сценарий ломается.\n"
+        "Если Bias NEUTRAL, бот даёт <b>две дорожки</b>: LONG и SHORT.\n\n"
+
+        "━━━━━━━━━━━━━━\n"
+        "<b>Рекомендуемый сценарий (самый простой)</b>\n"
+        "1) <code>/scan</code> → выбрал 1–3 монеты\n"
+        "2) <code>/plan TICKER</code> → смотри Bias и уровни\n"
+        "3) работай только со стопом (Invalidation — ориентир)\n\n"
+
+        "<b>Если ты совсем новичок</b>\n"
+        "Начни с BTC и ETH:\n"
+        "<code>/plan BTC_USDT</code>\n"
+        "<code>/plan ETH_USDT</code>\n"
+        "И только потом переходи к /scan.\n"
     )
     await m.answer(guide, parse_mode="HTML")
+
+
+
+@router.message(F.text == "❌ Скрыть кнопки")
+async def hide_buttons(m: Message):
+    await m.answer("Ок, убрал кнопки. Если нужно вернуть — напиши /start.", reply_markup=ReplyKeyboardRemove())
+
+
+@router.message(F.text == "🧪 Примеры")
+async def examples(m: Message):
+    msg = (
+        "<b>Примеры команд</b>\n\n"
+        "• Найти активность по объёму:\n"
+        "<code>/scan</code>\n"
+        "<code>/scan 1h 3 20</code>\n\n"
+        "• Получить план по монете:\n"
+        "<code>/plan BTC_USDT</code>\n"
+        "<code>/plan ETH_USDT</code>\n"
+        "<code>/plan SOL_USDT</code>\n\n"
+        "• Топ ликвидных монет:\n"
+        "<code>/top</code>\n"
+        "<code>/top 20</code>\n\n"
+        "Совет: <code>/scan</code> → выбрал тикер → <code>/plan</code>."
+    )
+    await m.answer(msg, parse_mode="HTML")
 
 @router.message()
 async def any_text(m: Message):
