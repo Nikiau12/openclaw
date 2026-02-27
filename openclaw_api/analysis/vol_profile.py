@@ -1,63 +1,62 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional, Tuple
+
+from .structure import Candle
 
 
 @dataclass(frozen=True)
-class VolumeProfile:
-    poc: Optional[float]
+class VP:
+    poc: float
     lvn_above: Optional[float]
     lvn_below: Optional[float]
 
 
-def build_volume_profile(
-    high: list[float],
-    low: list[float],
-    close: list[float],
-    vol: list[float],
-    bins: int = 48,
-) -> VolumeProfile:
-    n = min(len(close), len(vol), len(high), len(low))
-    if n < 20:
-        return VolumeProfile(None, None, None)
+def build_vp(candles: List[Candle], bins: int = 48, use_last_n: int = 200) -> VP:
+    data = candles[-use_last_n:] if len(candles) > use_last_n else candles
+    if len(data) < 30:
+        last = candles[-1].c if candles else 0.0
+        return VP(poc=last, lvn_above=None, lvn_below=None)
 
-    prices = [ (high[i] + low[i] + close[i]) / 3.0 for i in range(n) ]
-    pmin = min(prices)
-    pmax = max(prices)
-    if pmax <= pmin:
-        return VolumeProfile(None, None, None)
+    tps = [((c.h + c.l + c.c) / 3.0, float(c.v)) for c in data]
+    min_p = min(tp for tp, _ in tps)
+    max_p = max(tp for tp, _ in tps)
+    if max_p <= min_p:
+        last = candles[-1].c
+        return VP(poc=last, lvn_above=None, lvn_below=None)
 
-    step = (pmax - pmin) / float(bins)
-    if step <= 0:
-        return VolumeProfile(None, None, None)
+    step = (max_p - min_p) / bins
+    vols = [0.0] * bins
 
-    buckets = [0.0] * bins
-    for i in range(n):
-        idx = int((prices[i] - pmin) / step)
-        idx = max(0, min(bins - 1, idx))
-        buckets[idx] += float(vol[i])
+    for price, vol in tps:
+        idx = int((price - min_p) / step)
+        if idx >= bins:
+            idx = bins - 1
+        if idx < 0:
+            idx = 0
+        vols[idx] += vol
 
-    poc_i = max(range(bins), key=lambda i: buckets[i])
-    poc = pmin + (poc_i + 0.5) * step
+    poc_idx = max(range(bins), key=lambda i: vols[i])
+    poc_price = min_p + (poc_idx + 0.5) * step
 
-    sorted_vols = sorted(buckets)
-    thr = sorted_vols[max(0, int(0.2 * (bins - 1)))]
-    lvn_idx = [i for i, v in enumerate(buckets) if v <= thr]
+    # LVN zones: volumes below 20th percentile
+    sorted_vols = sorted(vols)
+    thr = sorted_vols[max(0, int(0.2 * (len(sorted_vols) - 1)))]
+    low_bins = [i for i, v in enumerate(vols) if v <= thr]
 
-    cur = float(close[n - 1])
-    cur_i = int((cur - pmin) / step)
-    cur_i = max(0, min(bins - 1, cur_i))
+    # current price approx: last close in last candle
+    last_price = data[-1].c
+    cur_idx = int((last_price - min_p) / step)
+    cur_idx = max(0, min(bins - 1, cur_idx))
 
-    lvn_above = None
-    for i in range(cur_i + 1, bins):
-        if i in lvn_idx:
-            lvn_above = pmin + (i + 0.5) * step
-            break
+    def bin_price(i: int) -> float:
+        return min_p + (i + 0.5) * step
 
-    lvn_below = None
-    for i in range(cur_i - 1, -1, -1):
-        if i in lvn_idx:
-            lvn_below = pmin + (i + 0.5) * step
-            break
+    above = [i for i in low_bins if i > cur_idx]
+    below = [i for i in low_bins if i < cur_idx]
 
-    return VolumeProfile(float(poc), float(lvn_above) if lvn_above is not None else None, float(lvn_below) if lvn_below is not None else None)
+    lvn_above = bin_price(min(above)) if above else None
+    lvn_below = bin_price(max(below)) if below else None
+
+    return VP(poc=poc_price, lvn_above=lvn_above, lvn_below=lvn_below)
