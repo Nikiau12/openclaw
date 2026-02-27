@@ -37,8 +37,30 @@ async def start(m: Message):
 
 @router.message(Command("plan"))
 async def plan(m: Message):
+    # /plan <symbol>
     parts = (m.text or "").split(maxsplit=1)
-    symbol = parts[1].strip() if len(parts) > 1 else "BTC_USDT"
+
+    # If user typed only /plan -> show quick picker
+    if len(parts) == 1:
+        kb = ReplyKeyboardMarkup(
+            keyboard=[
+                [KeyboardButton(text="/plan BTC_USDT"), KeyboardButton(text="/plan ETH_USDT")],
+                [KeyboardButton(text="/plan SOL_USDT")],
+                [KeyboardButton(text="✍️ Своя монета")],
+            ],
+            resize_keyboard=True,
+            one_time_keyboard=True,
+            input_field_placeholder="Выбери монету или введи команду…",
+        )
+        msg = (
+            "<b>/plan</b> — выбери монету или введи свою.\n\n"
+            "Быстрый выбор: BTC / ETH / SOL.\n"
+            "Своя монета: нажми <b>✍️ Своя монета</b>."
+        )
+        await m.answer(msg, parse_mode="HTML", reply_markup=kb)
+        return
+
+    symbol = parts[1].strip()
     try:
         data = await post("/plan/v3", {"symbol": symbol})
         msg = data.get("message_html") if isinstance(data, dict) else None
@@ -318,6 +340,19 @@ async def examples(m: Message):
         "<code>/top</code>\n"
         "<code>/top 20</code>\n\n"
         "Совет: <code>/scan</code> → выбрал тикер → <code>/plan</code>."
+    )
+    await m.answer(msg, parse_mode="HTML")
+
+
+@router.message(F.text == "✍️ Своя монета")
+async def plan_custom_hint(m: Message):
+    msg = (
+        "<b>Своя монета</b>\n"
+        "Напиши команду в любом удобном формате:\n"
+        "• <code>/plan ADA_USDT</code>\n"
+        "• <code>/plan ada-usdt</code>\n"
+        "• <code>/plan ada/usdt</code>\n\n"
+        "Подсказка: бот сам нормализует символ."
     )
     await m.answer(msg, parse_mode="HTML")
 
