@@ -11,7 +11,7 @@ router = APIRouter(prefix="/market", tags=["market"])
 MEXC_BASE = "https://api.mexc.com"
 
 
-STABLES = {"USDT", "USDC", "BUSD", "TUSD", "DAI", "FDUSD", "USDP"}
+STABLES = {"USDT", "USDC", "BUSD", "TUSD", "DAI", "FDUSD", "USDP", "USD1"}
 
 
 def _is_wrapped_or_synthetic(sym: str) -> bool:
