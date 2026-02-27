@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import httpx
+from html import escape
 
 from openclaw_api.routes.bias_v1 import (
     compute_bias,
@@ -221,7 +222,7 @@ async def plan_v3(req: PlanRequest):
             swings = last_swings(piv)
             sh = swings.swing_high.price if swings.swing_high else None
             sl = swings.swing_low.price if swings.swing_low else None
-            struct_note = bos_choch_note(last_close=c4[-1].c, swings=swings, bias=bias)
+            struct_note = escape(bos_choch_note(last_close=c4[-1].c, swings=swings, bias=bias), quote=False)
 
             struct_tag = ""
             if "BOS" in struct_note:
