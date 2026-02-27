@@ -9,12 +9,14 @@ from openclaw_api.routes.plan import router as plan_router
 from openclaw_api.routes.plan_v2 import router as plan_v2_router
 from openclaw_api.routes.bias_v1 import router as bias_router
 from openclaw_api.routes.plan_v3 import router as plan_v3_router
+from openclaw_api.routes.plan_v4 import router as plan_v4_router
 from openclaw_api.routes.market_top import router as market_router
 from openclaw_api.routes.market_scan import router as market_scan_router
 app = FastAPI(title="OpenClaw API")
 app.include_router(market_scan_router)
 app.include_router(market_router)
 app.include_router(plan_v3_router)
+app.include_router(plan_v4_router)
 app.include_router(bias_router)
 app.include_router(plan_v2_router)
 app.include_router(plan_router)
