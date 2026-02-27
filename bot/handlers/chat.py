@@ -73,6 +73,81 @@ async def top(m: Message):
     except Exception as e:
         await m.answer(f"❌ Error: {type(e).__name__}: {e}", parse_mode="HTML")
 
+
+@router.message(Command("scan"))
+async def scan(m: Message):
+    # /scan [tf] [mult] [limit]
+    # examples:
+    #   /scan
+    #   /scan 1h 3.0
+    #   /scan 15m 2.5 20
+    try:
+        parts = (m.text or "").split()
+
+        tf = "15m"
+        mult = 2.5
+        limit = 10
+
+        if len(parts) > 1:
+            tf = parts[1].strip()
+        if len(parts) > 2:
+            try:
+                mult = float(parts[2])
+            except Exception:
+                mult = 2.5
+        if len(parts) > 3:
+            try:
+                limit = int(parts[3])
+            except Exception:
+                limit = 10
+
+        if limit < 1:
+            limit = 1
+        if limit > 30:
+            limit = 30
+
+        payload = {
+            "quote": "USDT",
+            "limit": limit,
+            "candidate_pool": 200,
+            "min_quote_volume_24h": 10_000_000,
+            "max_abs_change_24h": 40,
+            "volume_spike": {
+                "tf": tf,
+                "lookback": 20,
+                "multiplier": mult,
+                "limit": 80
+            }
+        }
+
+        data = await post("/market/scan", payload)
+
+        items = data.get("items", []) if isinstance(data, dict) else []
+        if not items:
+            await m.answer(f"⚠️ Ничего не нашёл (tf={tf}, spike>={mult}).", parse_mode="HTML")
+            return
+
+        lines = [f"🔎 <b>Scan</b> tf=<code>{tf}</code> spike≥<code>{mult:g}</code> (top {limit})"]
+        for i, it in enumerate(items, start=1):
+            sym = it.get("symbol", "?")
+            sp = float(it.get("volume_spike") or 0.0)
+            ch = float(it.get("change_pct_24h") or 0.0)
+            qv = float(it.get("quote_volume_24h") or 0.0)
+            last = float(it.get("last") or 0.0)
+
+            icon = "🟩" if ch > 0 else "🟥" if ch < 0 else "🟦"
+            lines.append(
+                f"{i}. <code>{sym}</code>  spike <code>{sp:.2f}×</code>  {icon} <code>{ch:+.2f}%</code>  "
+                f"<code>{last:g}</code>  vol <code>{qv:,.0f}</code>"
+            )
+
+        await m.answer("\n".join(lines), parse_mode="HTML")
+
+    except APIError as e:
+        await m.answer(f"❌ APIError: {e}", parse_mode="HTML")
+    except Exception as e:
+        await m.answer(f"❌ Error: {type(e).__name__}: {e}", parse_mode="HTML")
+
 @router.message()
 async def any_text(m: Message):
     txt = (m.text or "").strip()
