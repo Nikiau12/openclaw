@@ -1,3 +1,4 @@
+import asyncio
 from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
@@ -121,13 +122,41 @@ async def scan(m: Message):
         }
 
         data = await post("/market/scan", payload)
-
         items = data.get("items", []) if isinstance(data, dict) else []
+
         if not items:
             await m.answer(f"⚠️ Ничего не нашёл (tf={tf}, spike>={mult}).", parse_mode="HTML")
             return
 
+        # --- trend filter: fetch bias for top N ---
+        top_n = min(5, len(items))
+        symbols = [items[i].get("symbol", "") for i in range(top_n)]
+        symbols = [s for s in symbols if s]
+
+        async def fetch_bias(sym: str):
+            # returns (sym, bias, score_total, weight_total) or (sym, None, None, None)
+            try:
+                b = await post("/signals/bias/v1", {"symbol": sym, "timeframes": ["1h", "4h", "1d"]})
+                if not isinstance(b, dict):
+                    return (sym, None, None, None)
+                return (
+                    sym,
+                    b.get("bias"),
+                    b.get("score_total"),
+                    b.get("weight_total"),
+                )
+            except Exception:
+                return (sym, None, None, None)
+
+        bias_results = await asyncio.gather(*[fetch_bias(s) for s in symbols])
+        bias_map = {sym: (bias, st, wt) for sym, bias, st, wt in bias_results}
+
+        def bias_icon(b: str | None) -> str:
+            return {"BULLISH": "🟩", "BEARISH": "🟥", "NEUTRAL": "🟦"}.get((b or "").upper(), "⚪️")
+
         lines = [f"🔎 <b>Scan</b> tf=<code>{tf}</code> spike≥<code>{mult:g}</code> (top {limit})"]
+        lines.append(f"🧭 Trend filter: bias 1H/4H/1D for top {top_n}")
+
         for i, it in enumerate(items, start=1):
             sym = it.get("symbol", "?")
             sp = float(it.get("volume_spike") or 0.0)
@@ -136,9 +165,18 @@ async def scan(m: Message):
             last = float(it.get("last") or 0.0)
 
             icon = "🟩" if ch > 0 else "🟥" if ch < 0 else "🟦"
+
+            b, st, wt = bias_map.get(sym, (None, None, None))
+            btxt = ""
+            if b:
+                try:
+                    btxt = f"  {bias_icon(b)} <code>{b}</code> <code>{int(st)}/{int(wt)}</code>"
+                except Exception:
+                    btxt = f"  {bias_icon(b)} <code>{b}</code>"
+
             lines.append(
-                f"{i}. <code>{sym}</code>  spike <code>{sp:.2f}×</code>  {icon} <code>{ch:+.2f}%</code>  "
-                f"<code>{last:g}</code>  vol <code>{qv:,.0f}</code>"
+                f"{i}. <code>{sym}</code>  spike <code>{sp:.2f}×</code>{btxt}\n"
+                f"    {icon} <code>{ch:+.2f}%</code>  <code>{last:g}</code>  vol <code>{qv:,.0f}</code>"
             )
 
         await m.answer("\n".join(lines), parse_mode="HTML")
@@ -147,6 +185,8 @@ async def scan(m: Message):
         await m.answer(f"❌ APIError: {e}", parse_mode="HTML")
     except Exception as e:
         await m.answer(f"❌ Error: {type(e).__name__}: {e}", parse_mode="HTML")
+
+
 
 @router.message()
 async def any_text(m: Message):
