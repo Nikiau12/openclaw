@@ -9,6 +9,17 @@ router = APIRouter(prefix="/market", tags=["market"])
 MEXC_BASE = "https://api.mexc.com"
 
 
+def _is_stable_pair(sym: str, quote: str) -> bool:
+    s = sym.upper()
+    q = quote.upper()
+    # treat stable/stable as noise in top lists
+    stables = {"USDT","USDC","BUSD","TUSD","DAI","FDUSD","USDP"}
+    for st in stables:
+        if s == f"{st}{q}" or s == f"{q}{st}":
+            return True
+    return False
+
+
 def _is_trash_symbol(sym: str) -> bool:
     s = sym.upper()
     # common leveraged token patterns
@@ -27,7 +38,11 @@ def _is_trash_symbol(sym: str) -> bool:
 async def market_top(
     quote: str = Query("USDT", min_length=2, max_length=10),
     limit: int = Query(10, ge=1, le=100),
-    min_quote_volume_24h: float = Query(0.0, ge=0.0),
+    min_quote_volume_24h: float = Query(0.0, ge=0.0),,
+    exclude_stables: bool = Query(True),
+    exclude_wrapped: bool = Query(True),
+    exclude_patterns: str | None = Query(None)
+
 ):
     """
     Top symbols by 24h quoteVolume (spot), filtered by quote currency (default USDT).
@@ -45,9 +60,18 @@ async def market_top(
 
         out = []
         suffix = q  # e.g. USDT
+        patterns = []
+        if exclude_patterns:
+            patterns = [p.strip().upper() for p in exclude_patterns.split(",") if p.strip()]
         for t in tickers:
             sym = str(t.get("symbol", "")).upper()
             if not sym.endswith(suffix):
+            if exclude_wrapped and ("(" in sym or ")" in sym):
+                continue
+            if exclude_stables and _is_stable_pair(sym, suffix):
+                continue
+            if patterns and any(pat in sym for pat in patterns):
+                continue
                 continue
             if _is_trash_symbol(sym):
                 continue
