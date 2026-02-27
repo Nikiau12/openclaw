@@ -62,7 +62,10 @@ async def plan(m: Message):
 
     symbol = parts[1].strip()
     try:
-        data = await post("/plan/v3", {"symbol": symbol})
+        data = await post("/plan/v3", {"symbol": symbol, "mode": "structure"})
+        # Fallback: if structure mode fails, retry classic
+        if not isinstance(data, dict) or not data.get("ok"):
+            data = await post("/plan/v3", {"symbol": symbol})
         msg = data.get("message_html") if isinstance(data, dict) else None
         await m.answer(msg or "⚠️ empty", parse_mode="HTML")
     except APIError as e:
