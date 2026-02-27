@@ -255,15 +255,9 @@ async def plan_v3(req: PlanRequest):
             buf_iv = 0.35 * atr4
 
         # 6) Choose bases (structure-first + fallbacks)
-        # BOS/CHOCH tag (for transparency in "chosen from")
-        struct_tag = ""
-        if "BOS" in struct_note:
-            struct_tag = "BOS"
-        elif "CHOCH" in struct_note:
-            struct_tag = "CHOCH"
-
         # LONG bases
         long_tr_base = sh if sh is not None else (vp.lvn_above if vp.lvn_above is not None else high_24h)
+        long_iv_base = sl if sl is not None else (None)
 
         # EMA21(4H) fallback from per_tf 4H
         ema21_4h = None
@@ -272,30 +266,14 @@ async def plan_v3(req: PlanRequest):
                 ema21_4h = float(x["ema21"])
                 break
 
-        # LONG invalidation base: structure first, EMA sanity-check
-        if sl is not None and ema21_4h is not None:
-            long_iv_base = min(float(sl), float(ema21_4h))
-        elif sl is not None:
-            long_iv_base = float(sl)
-        elif ema21_4h is not None:
-            long_iv_base = float(ema21_4h)
-        else:
-            long_iv_base = float(low_24h)
+        if long_iv_base is None:
+            long_iv_base = ema21_4h if ema21_4h is not None else low_24h
 
         # SHORT bases
         short_tr_base = sl if sl is not None else (vp.lvn_below if vp.lvn_below is not None else low_24h)
+        short_iv_base = sh if sh is not None else (ema21_4h if ema21_4h is not None else high_24h)
 
-        # SHORT invalidation base: structure first, EMA sanity-check
-        if sh is not None and ema21_4h is not None:
-            short_iv_base = max(float(sh), float(ema21_4h))
-        elif sh is not None:
-            short_iv_base = float(sh)
-        elif ema21_4h is not None:
-            short_iv_base = float(ema21_4h)
-        else:
-            short_iv_base = float(high_24h)
-
-# 7) Apply buffers (directional)
+        # 7) Apply buffers (directional)
         long_trigger = float(long_tr_base) + buf_tr
         long_invalid = float(long_iv_base) - buf_iv
 
@@ -328,33 +306,33 @@ async def plan_v3(req: PlanRequest):
 
         def _src_long_tr() -> str:
             if sh is not None:
-                return f"swing_high ({struct_tag})" if struct_tag else "swing_high"
+                return "swing_high"
             if vp.lvn_above is not None:
                 return "LVN_above"
             return "24h_high"
 
         def _src_long_iv() -> str:
             if sl is not None:
-                return f"swing_low ({struct_tag})" if struct_tag else "swing_low"
+                return "swing_low"
             if ema21_4h is not None:
                 return "EMA21(4H)"
             return "24h_low"
 
         def _src_short_tr() -> str:
             if sl is not None:
-                return f"swing_low ({struct_tag})" if struct_tag else "swing_low"
+                return "swing_low"
             if vp.lvn_below is not None:
                 return "LVN_below"
             return "24h_low"
 
         def _src_short_iv() -> str:
             if sh is not None:
-                return f"swing_high ({struct_tag})" if struct_tag else "swing_high"
+                return "swing_high"
             if ema21_4h is not None:
                 return "EMA21(4H)"
             return "24h_high"
 
-msg += (
+        msg += (
             f"🟩 <b>LONG</b> trigger: <code>{fmt_price(long_trigger)}</code> "
             f"(from { _src_long_tr() } + buf)\n"
             f"🟩 <b>LONG</b> invalid: <code>{fmt_price(long_invalid)}</code> "
