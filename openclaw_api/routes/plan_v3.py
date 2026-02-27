@@ -20,6 +20,13 @@ def _tf_label(tf: str) -> str:
     return tf.strip().upper()
 
 
+
+@router.post("/plan")
+async def plan_alias(req: PlanRequest):
+    # backward-compatible alias -> current implementation
+    return await plan_v3(req)
+
+
 @router.post("/plan/v3")
 async def plan_v3(req: PlanRequest):
     try:
