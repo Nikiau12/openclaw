@@ -307,6 +307,8 @@ async def full_guide(m: Message):
         "• <b>Invalidation</b> — уровень, где сценарий ломается.\n"
         "Если Bias NEUTRAL, бот даёт <b>две дорожки</b>: LONG и SHORT.\n\n"
 
+        "<b>🆕 Обновление /plan: Structure Mode (по умолчанию)</b>\n"        "Теперь <code>/plan SYMBOL</code> строит уровни не только от ATR, а от структуры рынка (4H) + буфера.\n\n"        "<b>🔩 Structure (4H)</b>\n"        "• <code>SH</code> — последний swing high (pivot-high)\n"        "• <code>SL</code> — последний swing low (pivot-low)\n"        "• метки <code>(BOS)</code>/<code>(CHOCH)</code> — контекст пробоя структуры\n\n"        "<b>📦 Volume Profile (4H)</b>\n"        "• <code>POC</code> — зона максимального объёма\n"        "• <code>LVN↑</code>/<code>LVN↓</code> — низко-объёмные зоны (fallback, если swings нет)\n\n"        "<b>🧊 Buffer (ATR)</b>\n"        "Буфер защищает от “чуть ткнули”. В TREND буфер меньше, в RANGE больше.\n"        "• TREND: trig=0.15×ATR(4H), inv=0.25×ATR(4H)\n"        "• RANGE: trig=0.25×ATR(4H), inv=0.35×ATR(4H)\n\n"        "<b>🎯 Levels</b>\n"        "Внизу /plan ты видишь, откуда взяты уровни: <i>from swing_high (BOS)</i>, <i>from LVN_above</i>, <i>from EMA21(4H)</i> и т.д.\n\n"
+
         "━━━━━━━━━━━━━━\n"
         "<b>Рекомендуемый сценарий (самый простой)</b>\n"
         "1) <code>/scan</code> → выбрал 1–3 монеты\n"
