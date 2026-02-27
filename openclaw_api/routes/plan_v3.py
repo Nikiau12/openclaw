@@ -7,6 +7,27 @@ import httpx
 from openclaw_api.routes.bias_v1 import compute_bias, normalize_symbol, MEXC_BASE
 
 
+
+def fmt_price(x: float) -> str:
+    # Human-friendly formatting for micro-priced assets (e.g., PEPE)
+    ax = abs(x)
+    if ax == 0:
+        return "0"
+    if ax >= 1000:
+        s = f"{x:,.2f}"
+    elif ax >= 1:
+        s = f"{x:,.4f}"
+    elif ax >= 0.01:
+        s = f"{x:.6f}"
+    elif ax >= 0.0001:
+        s = f"{x:.8f}"
+    else:
+        s = f"{x:.10f}"
+    # trim trailing zeros
+    if "." in s:
+        s = s.rstrip("0").rstrip(".")
+    return s
+
 router = APIRouter(tags=["plan"])
 
 
@@ -88,11 +109,11 @@ async def plan_v3(req: PlanRequest):
             f"{icon} <b>Bias</b>: {bias}\n"
             f"{tf_line}"
             f"{reasons_line}\n"
-            f"💰 <b>Last</b>: <code>{last:.2f}</code>\n"
+            f"💰 <b>Last</b>: <code>{fmt_price(last)}</code>\n"
             f"📈 <b>24h</b>: <code>{change_pct:+.2f}%</code>\n"
             f"🌊 <b>QuoteVol</b>: <code>{quote_vol:,.0f}</code>\n"
-            f"⬆️ <b>High</b>: <code>{high:.2f}</code>\n"
-            f"⬇️ <b>Low</b>: <code>{low:.2f}</code>\n"
+            f"⬆️ <b>High</b>: <code>{fmt_price(high)}</code>\n"
+            f"⬇️ <b>Low</b>: <code>{fmt_price(low)}</code>\n"
         )
 
         # scenario levels (ATR-based)
@@ -104,15 +125,15 @@ async def plan_v3(req: PlanRequest):
                 trigger = last + k_trig * atr_ref
                 invalid = last - k_inv * atr_ref
                 msg += (
-                    f"\n🎯 <b>Trigger</b>: <code>{trigger:.2f}</code>\n"
-                    f"🧯 <b>Invalidation</b>: <code>{invalid:.2f}</code>\n"
+                    f"\n🎯 <b>Trigger</b>: <code>{fmt_price(trigger)}</code>\n"
+                    f"🧯 <b>Invalidation</b>: <code>{fmt_price(invalid)}</code>\n"
                 )
             elif bias == "BEARISH":
                 trigger = last - k_trig * atr_ref
                 invalid = last + k_inv * atr_ref
                 msg += (
-                    f"\n🎯 <b>Trigger</b>: <code>{trigger:.2f}</code>\n"
-                    f"🧯 <b>Invalidation</b>: <code>{invalid:.2f}</code>\n"
+                    f"\n🎯 <b>Trigger</b>: <code>{fmt_price(trigger)}</code>\n"
+                    f"🧯 <b>Invalidation</b>: <code>{fmt_price(invalid)}</code>\n"
                 )
             else:
                 # neutral -> 2 scenarios
@@ -122,8 +143,8 @@ async def plan_v3(req: PlanRequest):
                 sh_iv = last + k_inv * atr_ref
                 msg += (
                     f"\n🧭 <b>Scenarios</b> (ATR-based)\n"
-                    f"🟩 <b>LONG</b>  trigger: <code>{lg_tr:.2f}</code> | invalid: <code>{lg_iv:.2f}</code>\n"
-                    f"🟥 <b>SHORT</b> trigger: <code>{sh_tr:.2f}</code> | invalid: <code>{sh_iv:.2f}</code>\n"
+                    f"🟩 <b>LONG</b>  trigger: <code>{fmt_price(lg_tr)}</code> | invalid: <code>{fmt_price(lg_iv)}</code>\n"
+                    f"🟥 <b>SHORT</b> trigger: <code>{fmt_price(sh_tr)}</code> | invalid: <code>{fmt_price(sh_iv)}</code>\n"
                 )
 
         msg += "\n🚨 <b>Риск-правило</b>: стоп обязателен.\n"
