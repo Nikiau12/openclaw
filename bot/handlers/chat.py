@@ -1,5 +1,5 @@
 import asyncio
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message
 from bot.clients.api import get, post, APIError
@@ -187,6 +187,60 @@ async def scan(m: Message):
         await m.answer(f"❌ Error: {type(e).__name__}: {e}", parse_mode="HTML")
 
 
+
+
+@router.message(F.text == "📘 Полный гайд")
+async def full_guide(m: Message):
+    guide = (
+        "<b>OpenClaw — подробный гайд</b>\n"
+        "<i>Это аналитика, не торговый совет.</i>\n\n"
+
+        "<b>Команда /top [N]</b>\n"
+        "Показывает топ монет USDT по объёму за 24ч (quoteVolume).\n"
+        "Зачем: выбирать ликвидные монеты, где обычно проще вход/выход.\n"
+        "Примеры: <code>/top</code>, <code>/top 20</code>\n\n"
+
+        "<b>Команда /scan [tf] [spike] [N]</b>\n"
+        "Ищет монеты, где объём последней свечи на выбранном TF резко выше нормы.\n"
+        "Spike — это: <b>объём последней свечи</b> / <b>средний объём прошлых свечей</b>.\n"
+        "Примеры: <code>/scan</code>, <code>/scan 1h 3 20</code>\n"
+        "Как понимать spike:\n"
+        "• 2–3×: оживление\n"
+        "• 3–5×: сильный импульс\n"
+        "• >5×: часто новости/манипуляции — осторожно\n\n"
+
+        "<b>Команда /plan &lt;symbol&gt;</b>\n"
+        "Даёт план по монете и контекст рынка на старших TF: 1H/4H/1D.\n"
+        "Показывает 24h сводку (цена/изменение/объём), Bias и уровни.\n"
+        "Примеры: <code>/plan BTC_USDT</code>, <code>/plan ETHUSDT</code>, <code>/plan sol-usdt</code>\n\n"
+
+        "<b>Как читать Bias</b>\n"
+        "Bias бывает: 🟩 BULLISH / 🟥 BEARISH / 🟦 NEUTRAL.\n"
+        "Он считается по EMA(9/21) + RSI(14) на закрытых свечах (no repaint),\n"
+        "с приоритетом старших TF (1D важнее 4H, 4H важнее 1H).\n\n"
+
+        "<b>📊 TF line</b>\n"
+        "Показывает, как “проголосовали” TF:\n"
+        "<code>1H:+2 | 4H:+2 | 1D:-2 → 0/6</code>\n"
+        "Каждый TF даёт score от -2 до +2:\n"
+        "• EMA9>EMA21 даёт +1, EMA9<EMA21 даёт -1\n"
+        "• RSI≥55 даёт +1, RSI≤45 даёт -1\n"
+        "Дальше суммируется с весами (1D=3, 4H=2, 1H=1).\n\n"
+
+        "<b>🧩 Drivers</b>\n"
+        "Коротко объясняет, что сильнее всего влияет на вердикт (обычно дневка).\n\n"
+
+        "<b>Уровни и сценарии</b>\n"
+        "Trigger — уровень, после которого сценарий считается активным.\n"
+        "Invalidation — уровень, при котором сценарий ломается.\n"
+        "Если Bias NEUTRAL, бот даёт 2 сценария: LONG и SHORT.\n\n"
+
+        "<b>Рекомендуемый сценарий использования</b>\n"
+        "1) <code>/scan</code> → выбрал тикер\n"
+        "2) <code>/plan TICKER</code> → понял Bias и сценарии\n"
+        "3) Дальше действуешь по своей стратегии и риск-менеджменту.\n"
+    )
+    await m.answer(guide, parse_mode="HTML")
 
 @router.message()
 async def any_text(m: Message):
