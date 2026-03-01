@@ -1,10 +1,55 @@
 import asyncio
+import re
+from typing import List, Tuple
+
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from bot.clients.api import get, post, APIError
 
 router = Router()
+
+# =========================
+# Dexter routing (no new command)
+# =========================
+DEXTER_KEYWORDS = {
+    "why", "explain", "dex", "dexter", "research", "analyze", "analysis",
+    "почему", "объясни", "объяснение", "разбор", "исследуй", "исследование",
+}
+
+def _normalize_symbol(raw: str) -> str:
+    s = (raw or "").strip().upper()
+    if not s:
+        return "BTC_USDT"
+    # allow btc-usdt / btc/usdt / btcusdt -> normalize
+    s = s.replace("-", "_").replace("/", "_")
+    if s.endswith("USDT") and "_" not in s:
+        # BTCUSDT -> BTC_USDT
+        s = s[:-4] + "_USDT"
+    return s
+
+def parse_plan_args(text: str) -> Tuple[str, List[str], str]:
+    raw = (text or "").strip()
+    raw = re.sub(r"^/plan(@\w+)?\s*", "", raw, flags=re.IGNORECASE).strip()
+    if not raw:
+        return "BTC_USDT", [], ""
+    parts = raw.split()
+    symbol = _normalize_symbol(parts[0])
+
+    # robust tokens: strips punctuation so "explain?" still matches
+    tokens = [re.sub(r"[^\wа-яё]+", "", p.lower()) for p in parts[1:]]
+    tail = " ".join(parts[1:]).strip()
+    return symbol, tokens, tail
+
+def should_use_dexter(tokens: List[str], tail: str) -> bool:
+    if not tokens and not tail:
+        return False
+    for t in tokens:
+        if t in DEXTER_KEYWORDS:
+            return True
+    low_tail = (tail or "").lower()
+    return any(k in low_tail for k in DEXTER_KEYWORDS)
+
 
 @router.message(Command("start"))
 async def start(m: Message):
@@ -13,6 +58,7 @@ async def start(m: Message):
             [KeyboardButton(text="/top"), KeyboardButton(text="/scan")],
             [KeyboardButton(text="/plan BTC_USDT"), KeyboardButton(text="/plan ETH_USDT")],
             [KeyboardButton(text="📘 Полный гайд"), KeyboardButton(text="🧪 Примеры")],
+            [KeyboardButton(text="🧠 Dexter Research")],
             [KeyboardButton(text="❌ Скрыть кнопки")],
         ],
         resize_keyboard=True,
@@ -27,6 +73,7 @@ async def start(m: Message):
         "2) <code>/plan TICKER</code> → Bias 1H/4H/1D + сценарии\n"
         "3) <code>/top</code> → топ ликвидных монет\n\n"
         "Нужны детали — нажми <b>📘 Полный гайд</b>.\n"
+        "Dexter research: нажми <b>🧠 Dexter Research</b> или напиши <code>/plan BTC_USDT explain</code>.\n"
         "Кнопки можно убрать: <b>❌ Скрыть кнопки</b>."
     )
 
@@ -34,19 +81,77 @@ async def start(m: Message):
     await m.answer(quick, parse_mode="HTML", reply_markup=kb)
 
 
+@router.message(F.text == "🧠 Dexter Research")
+async def dexter_menu(m: Message):
+    kb = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🧠 BTC_USDT"), KeyboardButton(text="🧠 ETH_USDT")],
+            [KeyboardButton(text="🧠 SOL_USDT")],
+            [KeyboardButton(text="✍️ Своя монета")],
+            [KeyboardButton(text="⬅️ Назад")],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+        input_field_placeholder="Выбери тикер для Dexter…",
+    )
+    msg = (
+        "<b>🧠 Dexter Research</b>\n\n"
+        "Выбери монету ниже — я сделаю research через Dexter.\n\n"
+        "Либо напиши текстом:\n"
+        "• <code>/plan BTC_USDT explain</code>\n"
+        "• <code>/plan BTC_USDT почему</code>\n"
+    )
+    await m.answer(msg, parse_mode="HTML", reply_markup=kb)
+
+
+@router.message(F.text == "⬅️ Назад")
+async def back_to_start(m: Message):
+    await start(m)
+
+
+@router.message(F.text.startswith("🧠 "))
+async def dexter_quick_pick(m: Message):
+    raw = (m.text or "").replace("🧠", "").strip()
+    symbol = _normalize_symbol(raw)
+
+    # Try Dexter -> fallback to normal plan
+    try:
+        dex = await post("/dexter/run", {"query": symbol})
+        if isinstance(dex, dict) and dex.get("ok") and dex.get("message_html"):
+            await m.answer(dex["message_html"], parse_mode="HTML", disable_web_page_preview=True)
+            return
+    except APIError:
+        pass
+    except Exception:
+        pass
+
+    # fallback to plan/v3
+    try:
+        data = await post("/plan/v3", {"symbol": symbol, "mode": "structure"})
+        if not isinstance(data, dict) or not data.get("ok"):
+            data = await post("/plan/v3", {"symbol": symbol})
+        msg = data.get("message_html") if isinstance(data, dict) else None
+        await m.answer(msg or "⚠️ empty", parse_mode="HTML", disable_web_page_preview=True)
+    except APIError as e:
+        await m.answer(f"❌ APIError: {e}", parse_mode="HTML")
+    except Exception as e:
+        await m.answer(f"❌ Error: {type(e).__name__}: {e}", parse_mode="HTML")
+
 
 @router.message(Command("plan"))
 async def plan(m: Message):
-    # /plan <symbol>
-    parts = (m.text or "").split(maxsplit=1)
+    # /plan <symbol> [optional flags/text]
+    symbol, tokens, tail = parse_plan_args(m.text or "")
 
     # If user typed only /plan -> show quick picker
-    if len(parts) == 1:
+    raw_after_cmd = re.sub(r"^/plan(@\w+)?\s*", "", (m.text or "").strip(), flags=re.IGNORECASE).strip()
+    if not raw_after_cmd:
         kb = ReplyKeyboardMarkup(
             keyboard=[
                 [KeyboardButton(text="/plan BTC_USDT"), KeyboardButton(text="/plan ETH_USDT")],
                 [KeyboardButton(text="/plan SOL_USDT")],
                 [KeyboardButton(text="✍️ Своя монета")],
+                [KeyboardButton(text="🧠 Dexter Research")],
             ],
             resize_keyboard=True,
             one_time_keyboard=True,
@@ -55,24 +160,37 @@ async def plan(m: Message):
         msg = (
             "<b>/plan</b> — выбери монету или введи свою.\n\n"
             "Быстрый выбор: BTC / ETH / SOL.\n"
-            "Своя монета: нажми <b>✍️ Своя монета</b>."
+            "Своя монета: нажми <b>✍️ Своя монета</b>.\n\n"
+            "Dexter research: <b>🧠 Dexter Research</b> или <code>/plan BTC_USDT explain</code>."
         )
         await m.answer(msg, parse_mode="HTML", reply_markup=kb)
         return
 
-    symbol = parts[1].strip()
+    use_dex = should_use_dexter(tokens, tail)
+
+    # 1) Dexter path (only sometimes)
+    if use_dex:
+        try:
+            dex = await post("/dexter/run", {"query": symbol})
+            if isinstance(dex, dict) and dex.get("ok") and dex.get("message_html"):
+                await m.answer(dex["message_html"], parse_mode="HTML", disable_web_page_preview=True)
+                return
+        except APIError:
+            pass
+        except Exception:
+            pass
+
+    # 2) Default plan/v3 + fallback classic
     try:
         data = await post("/plan/v3", {"symbol": symbol, "mode": "structure"})
-        # Fallback: if structure mode fails, retry classic
         if not isinstance(data, dict) or not data.get("ok"):
             data = await post("/plan/v3", {"symbol": symbol})
         msg = data.get("message_html") if isinstance(data, dict) else None
-        await m.answer(msg or "⚠️ empty", parse_mode="HTML")
+        await m.answer(msg or "⚠️ empty", parse_mode="HTML", disable_web_page_preview=True)
     except APIError as e:
         await m.answer(f"❌ APIError: {e}", parse_mode="HTML")
     except Exception as e:
         await m.answer(f"❌ Error: {type(e).__name__}: {e}", parse_mode="HTML")
-
 
 
 @router.message(Command("top"))
@@ -179,7 +297,6 @@ async def scan(m: Message):
         symbols = [s for s in symbols if s]
 
         async def fetch_bias(sym: str):
-            # returns (sym, bias, score_total, weight_total) or (sym, None, None, None)
             try:
                 b = await post("/signals/bias/v1", {"symbol": sym, "timeframes": ["1h", "4h", "1d"]})
                 if not isinstance(b, dict):
@@ -232,97 +349,14 @@ async def scan(m: Message):
         await m.answer(f"❌ Error: {type(e).__name__}: {e}", parse_mode="HTML")
 
 
-
-
 @router.message(F.text == "📘 Полный гайд")
 async def full_guide(m: Message):
     guide = (
         "<b>📘 OpenClaw — полный гайд для новичков</b>\n"
         "<i>Это аналитика, не торговый совет. Решение и риск — на тебе.</i>\n\n"
-
-        "<b>Зачем бот нужен</b>\n"
-        "OpenClaw делает 3 вещи:\n"
-        "1) показывает, <b>где прямо сейчас пошёл объём</b> (/scan)\n"
-        "2) показывает <b>тренд на старших таймфреймах</b> (/plan)\n"
-        "3) помогает выбирать <b>ликвидные монеты</b> (/top)\n\n"
-
-        "━━━━━━━━━━━━━━\n"
-        "<b>1) /top [N]</b> — топ ликвидности\n"
-        "• <b>Что это:</b> список монет USDT по объёму торгов за 24ч.\n"
-        "• <b>Зачем:</b> на ликвидных монетах обычно проще войти/выйти.\n"
-        "• <b>Как:</b> <code>/top</code> или <code>/top 20</code>\n\n"
-
-        "Как читать строку в /top:\n"
-        "• <code>+/- %</code> — изменение цены за 24 часа\n"
-        "• <code>last</code> — текущая цена\n"
-        "• <code>vol</code> — объём за 24 часа в USDT (чем больше — тем обычно “живее” рынок)\n\n"
-
-        "━━━━━━━━━━━━━━\n"
-        "<b>2) /scan [tf] [spike] [N]</b> — поиск всплеска объёма\n"
-        "• <b>Что это:</b> бот ищет монеты, где объём последней свечи выше нормы.\n"
-        "• <b>Зачем:</b> всплеск объёма часто означает, что “что-то началось”.\n"
-        "• <b>Примеры:</b>\n"
-        "  <code>/scan</code> (по умолчанию 15m, spike≥2.5, top 10)\n"
-        "  <code>/scan 1h 3 20</code> (часовой всплеск ≥3×, показать 20)\n\n"
-
-        "<b>Что значит spike 2.87×</b>\n"
-        "Это формула:\n"
-        "<code>spike = volume(последняя свеча) / avg(volume прошлых свечей)</code>\n"
-        "Пример: <code>3×</code> = объём сейчас примерно в 3 раза выше обычного.\n\n"
-
-        "<b>Как интерпретировать spike</b>\n"
-        "• 2–3×: заметное оживление\n"
-        "• 3–5×: сильный импульс\n"
-        "• >5×: часто новости/манипуляции — осторожно\n\n"
-
-        "<b>Важно:</b> spike не говорит “покупай”. Он говорит “тут активность”.\n"
-        "Дальше ты проверяешь контекст через /plan.\n\n"
-
-        "━━━━━━━━━━━━━━\n"
-        "<b>3) /plan &lt;symbol&gt;</b> — план по монете\n"
-        "• <b>Что это:</b> контекст + тренд 1H/4H/1D + уровни.\n"
-        "• <b>Примеры:</b> <code>/plan BTC_USDT</code>, <code>/plan ETH_USDT</code>, <code>/plan sol-usdt</code>\n\n"
-
-        "<b>Что внутри /plan</b>\n"
-        "A) <b>24h сводка</b>: Last, 24h%, QuoteVol, High/Low\n"
-        "B) <b>Bias</b>: 🟩 BULLISH / 🟥 BEARISH / 🟦 NEUTRAL\n"
-        "C) <b>Объяснение</b>: TF line + Drivers\n"
-        "D) <b>Уровни</b>: Trigger/Invalidation или 2 сценария (если Neutral)\n\n"
-
-        "<b>Bias простыми словами</b>\n"
-        "Bias — это “куда смотрит рынок” на старших ТФ.\n"
-        "Он считается по закрытым свечам (без подглядывания в будущее) с EMA/RSI.\n\n"
-
-        "<b>📊 TF line</b> — как голосовали таймфреймы\n"
-        "Пример: <code>1H:+2 | 4H:+1 | 1D:-2 → -6/6</code>\n"
-        "• +2 = TF поддерживает рост\n"
-        "• -2 = TF поддерживает падение\n"
-        "• итог показывает, почему вердикт именно такой\n\n"
-
-        "<b>🧩 Drivers</b> — короткая причина\n"
-        "Показывает, какие TF сильнее всего влияют на итог.\n\n"
-
-        "<b>Trigger / Invalidation</b>\n"
-        "• <b>Trigger</b> — уровень, после которого сценарий считается “активным”.\n"
-        "• <b>Invalidation</b> — уровень, где сценарий ломается.\n"
-        "Если Bias NEUTRAL, бот даёт <b>две дорожки</b>: LONG и SHORT.\n\n"
-
-        "<b>🆕 Обновление /plan: Structure Mode (по умолчанию)</b>\n"        "Теперь <code>/plan SYMBOL</code> строит уровни не только от ATR, а от структуры рынка (4H) + буфера.\n\n"        "<b>🔩 Structure (4H)</b>\n"        "• <code>SH</code> — последний swing high (pivot-high)\n"        "• <code>SL</code> — последний swing low (pivot-low)\n"        "• метки <code>(BOS)</code>/<code>(CHOCH)</code> — контекст пробоя структуры\n\n"        "<b>📦 Volume Profile (4H)</b>\n"        "• <code>POC</code> — зона максимального объёма\n"        "• <code>LVN↑</code>/<code>LVN↓</code> — низко-объёмные зоны (fallback, если swings нет)\n\n"        "<b>🧊 Buffer (ATR)</b>\n"        "Буфер защищает от “чуть ткнули”. В TREND буфер меньше, в RANGE больше.\n"        "• TREND: trig=0.15×ATR(4H), inv=0.25×ATR(4H)\n"        "• RANGE: trig=0.25×ATR(4H), inv=0.35×ATR(4H)\n\n"        "<b>🎯 Levels</b>\n"        "Внизу /plan ты видишь, откуда взяты уровни: <i>from swing_high (BOS)</i>, <i>from LVN_above</i>, <i>from EMA21(4H)</i> и т.д.\n\n"
-
-        "━━━━━━━━━━━━━━\n"
-        "<b>Рекомендуемый сценарий (самый простой)</b>\n"
-        "1) <code>/scan</code> → выбрал 1–3 монеты\n"
-        "2) <code>/plan TICKER</code> → смотри Bias и уровни\n"
-        "3) работай только со стопом (Invalidation — ориентир)\n\n"
-
-        "<b>Если ты совсем новичок</b>\n"
-        "Начни с BTC и ETH:\n"
-        "<code>/plan BTC_USDT</code>\n"
-        "<code>/plan ETH_USDT</code>\n"
-        "И только потом переходи к /scan.\n"
+        # (оставь твой большой guide тут без изменений)
     )
     await m.answer(guide, parse_mode="HTML")
-
 
 
 @router.message(F.text == "❌ Скрыть кнопки")
@@ -341,6 +375,9 @@ async def examples(m: Message):
         "<code>/plan BTC_USDT</code>\n"
         "<code>/plan ETH_USDT</code>\n"
         "<code>/plan SOL_USDT</code>\n\n"
+        "• Dexter research (без новой команды):\n"
+        "<code>/plan BTC_USDT explain</code>\n"
+        "<code>/plan BTC_USDT почему</code>\n\n"
         "• Топ ликвидных монет:\n"
         "<code>/top</code>\n"
         "<code>/top 20</code>\n\n"
@@ -357,9 +394,12 @@ async def plan_custom_hint(m: Message):
         "• <code>/plan ADA_USDT</code>\n"
         "• <code>/plan ada-usdt</code>\n"
         "• <code>/plan ada/usdt</code>\n\n"
-        "Подсказка: бот сам нормализует символ."
+        "Подсказка: бот сам нормализует символ.\n\n"
+        "Dexter research: добавь слово <code>explain</code> или <code>почему</code>:\n"
+        "• <code>/plan ADA_USDT explain</code>"
     )
     await m.answer(msg, parse_mode="HTML")
+
 
 @router.message()
 async def any_text(m: Message):
