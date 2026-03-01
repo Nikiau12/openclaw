@@ -116,7 +116,7 @@ async def dexter_quick_pick(m: Message):
 
     # Try Dexter -> fallback to normal plan
     try:
-        dex = await post("/dexter/run", {"query": symbol})
+        dex = await post("/dexter/run?analysis=1", {"query": symbol, "analysis": True})
         if isinstance(dex, dict) and dex.get("ok") and dex.get("message_html"):
             await m.answer(dex["message_html"], parse_mode="HTML", disable_web_page_preview=True)
             return
