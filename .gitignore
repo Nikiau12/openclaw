@@ -13,3 +13,4 @@ __pycache__/
 *.log
 .venv/
 *.bak
+*.bak
