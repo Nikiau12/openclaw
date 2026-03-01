@@ -5,6 +5,7 @@ from openclaw_api import mexc
 from typing import Optional, Dict, Any
 
 from openclaw_api.routes.mexc_spot import router as mexc_spot_router
+from openclaw_api.routes.dexter_proxy import router as dexter_router
 from openclaw_api.routes.plan import router as plan_router
 from openclaw_api.routes.plan_v2 import router as plan_v2_router
 from openclaw_api.routes.bias_v1 import router as bias_router
@@ -19,6 +20,7 @@ app.include_router(bias_router)
 app.include_router(plan_v2_router)
 app.include_router(plan_router)
 app.include_router(mexc_spot_router)
+app.include_router(dexter_router)
 
 @app.get("/health")
 def health():
