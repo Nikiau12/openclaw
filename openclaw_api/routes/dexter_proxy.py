@@ -89,7 +89,7 @@ async def dexter_run(req: DexterRunRequest, analysis: Optional[str] = Query(defa
             "message_html": msg,
             "raw": {
                 "mode": "fallback_plan_only",
-                "error": f"dexter_error:{str(e)}",
+                "error": f"dexter_error:{e.__class__.__name__}:{str(e) or repr(e)}",
                 "symbol": sym,
                 "plan": plan,
             },
