@@ -35,7 +35,17 @@ async def free_text_to_dexter(message: Message):
     if not q:
         return
 
+    await message.answer("⏳ Думаю… (Dexter + AI)")
+
     # Call OpenClaw dexter proxy with analysis enabled
-    data = await post("/dexter/run?analysis=1", {"query": q, "analysis": True})
+    try:
+    try:
+        data = await post("/dexter/run?analysis=1", {"query": q, "analysis": True}, timeout=20)
+    except Exception:
+        await message.answer("⚠️ Таймаут/ошибка при запросе Dexter. Попробуй ещё раз через минуту.")
+        return
+    except Exception:
+        await message.answer("⚠️ Таймаут/ошибка при запросе Dexter. Попробуй ещё раз через минуту.")
+        return
     html = (data or {}).get("message_html") if isinstance(data, dict) else None
     await message.answer(html or "<i>Dexter unavailable</i>")
