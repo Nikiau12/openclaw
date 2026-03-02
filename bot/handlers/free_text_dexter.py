@@ -68,8 +68,16 @@ def _html_to_plain(html: str) -> str:
     t = t.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&").replace("&quot;", '"')
     return t.strip()
 
+def _normalize_telegram_html(html: str) -> str:
+    t = html or ""
+    # Telegram HTML: <br> is OK, <br/> is NOT
+    t = re.sub(r"<br\s*/\s*>", "<br>", t, flags=re.I)
+    t = re.sub(r"<br\s*/>", "<br>", t, flags=re.I)
+    t = t.replace("</br>", "<br>").replace("</BR>", "<br>")
+    return t
 async def safe_send_html(message: Message, html: str, extra_html: str = "") -> None:
     body_html = (html or "<i>Dexter unavailable</i>") + (extra_html or "")
+    body_html = _normalize_telegram_html(body_html)
     # 1) Try HTML
     try:
         await message.answer(body_html, parse_mode="HTML")
@@ -83,11 +91,13 @@ async def safe_send_html(message: Message, html: str, extra_html: str = "") -> N
 
     # 2) Plain + chunk
     plain = _html_to_plain(body_html)
+    # hard-escape anything that could look like HTML
+    plain = plain.replace("<", "⟨").replace(">", "⟩")
     if not plain:
         plain = "Dexter response empty"
     for part in _chunk_text(plain, 3500):
         if part.strip():
-            await message.answer(part)
+            await message.answer(part, parse_mode=None)
 
 @router.message(F.text & ~F.text.startswith("/"))
 async def free_text_to_dexter(message: Message):
