@@ -11,8 +11,8 @@ async def main():
         raise SystemExit("TELEGRAM_BOT_TOKEN is empty")
     bot = Bot(token=TELEGRAM_BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
     dp = Dispatcher()
-    dp.include_router(chat_router)
     dp.include_router(free_text_router)
+    dp.include_router(chat_router)
     dp.include_router(market_router)
     await dp.start_polling(bot)
 
