@@ -203,9 +203,27 @@ async def plan_v3(req: PlanRequest):
                     )
 
             msg += "\n🚨 <b>Риск-правило</b>: стоп обязателен.\n"
-            return {"ok": True, "message_html": msg}
+            return {"ok": True, "message_html": msg, "payload": payload}
 
         # ===== structure mode (guarded) =====
+        payload = {
+            "tf": "4H",
+            "regime": None,
+            "range": {"low": None, "high": None},
+            "levels": {
+                "long": {"trigger": None, "invalid": None},
+                "short": {"trigger": None, "invalid": None},
+            },
+            "vp": {"poc": None, "lvn": []},
+            "buffers": {
+                "trig": None,
+                "inv": None,
+                "atr": None,
+                "trigger_atr_mult": None,
+                "invalidation_atr_mult": None,
+            },
+        }
+
         try:
             async with httpx.AsyncClient(timeout=12.0) as client:
                 r4 = await client.get(
@@ -347,12 +365,41 @@ async def plan_v3(req: PlanRequest):
             if regime == "RANGE" and sh is not None and sl is not None:
                 msg += f"\n📏 <b>Range</b>: <code>{fmt_price(sl)}</code> … <code>{fmt_price(sh)}</code>\n"
 
+            # machine payload (for Dexter reasoning)
+            payload["regime"] = regime
+            payload["buffers"]["atr"] = float(atr4)
+            payload["buffers"]["trig"] = float(buf_tr)
+            payload["buffers"]["inv"] = float(buf_iv)
+            payload["buffers"]["trigger_atr_mult"] = 0.15 if regime == "TREND" else 0.25
+            payload["buffers"]["invalidation_atr_mult"] = 0.25 if regime == "TREND" else 0.35
+
+            payload["levels"]["long"]["trigger"] = float(long_trigger)
+            payload["levels"]["long"]["invalid"] = float(long_invalid)
+            payload["levels"]["short"]["trigger"] = float(short_trigger)
+            payload["levels"]["short"]["invalid"] = float(short_invalid)
+
+            payload["vp"]["poc"] = float(vp.poc)
+            lvn = []
+            if vp.lvn_above is not None:
+                lvn.append(float(vp.lvn_above))
+            if vp.lvn_below is not None:
+                lvn.append(float(vp.lvn_below))
+            payload["vp"]["lvn"] = lvn
+
+            if sh is not None:
+                payload["range"]["high"] = float(sh)
+            if sl is not None:
+                payload["range"]["low"] = float(sl)
+
         except Exception as e:
             # DO NOT break API startup/healthchecks because of structure mode.
-            msg += f"\n⚠️ <b>Structure mode error</b>: <code>{str(e)}</code>\n"
+            msg += f"
+⚠️ <b>Structure mode error</b>: <code>{str(e)}</code>
+"
+            payload["error"] = str(e)
 
         msg += "\n🚨 <b>Риск-правило</b>: стоп обязателен.\n"
-        return {"ok": True, "message_html": msg}
+        return {"ok": True, "message_html": msg, "payload": payload}
 
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=502, detail=f"MEXC error: {e.response.status_code}")
