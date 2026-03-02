@@ -1,5 +1,15 @@
 import os
 import aiohttp
+
+_SESSION: aiohttp.ClientSession | None = None
+
+async def _session(timeout: int) -> aiohttp.ClientSession:
+    global _SESSION
+    if _SESSION is not None and not _SESSION.closed:
+        return _SESSION
+    t = aiohttp.ClientTimeout(total=timeout)
+    _SESSION = aiohttp.ClientSession(timeout=t)
+    return _SESSION
 from typing import Any, Dict, Optional
 
 from bot.config import OPENCLAW_API_URL
@@ -31,9 +41,8 @@ def _join(path: str) -> str:
 
 async def get(path: str, params: Optional[Dict[str, Any]] = None, timeout: int = 30) -> Dict[str, Any]:
     url = _join(path)
-    t = aiohttp.ClientTimeout(total=timeout)
-    async with aiohttp.ClientSession(timeout=t) as s:
-        async with s.get(url, params=params) as r:
+    s = await _session(timeout)
+    async with s.get(url, params=params) as r:
             data = await r.json(content_type=None)
             if r.status >= 400:
                 raise APIError(f"GET {url} -> {r.status}: {data}")
@@ -42,9 +51,8 @@ async def get(path: str, params: Optional[Dict[str, Any]] = None, timeout: int =
 
 async def post(path: str, payload: Optional[Dict[str, Any]] = None, timeout: int = 30) -> Dict[str, Any]:
     url = _join(path)
-    t = aiohttp.ClientTimeout(total=timeout)
-    async with aiohttp.ClientSession(timeout=t) as s:
-        async with s.post(url, json=(payload or {})) as r:
+    s = await _session(timeout)
+    async with s.post(url, json=(payload or {})) as r:
             data = await r.json(content_type=None)
             if r.status >= 400:
                 raise APIError(f"POST {url} -> {r.status}: {data}")
