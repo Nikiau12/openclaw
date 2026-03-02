@@ -10,6 +10,15 @@ from bot.clients.api import post
 
 router = Router()
 
+# UI buttons handled in handlers/chat.py (do not intercept here)
+_UI_BUTTONS = {
+    "⬅️ Назад",
+    "📘 Полный гайд",
+    "❌ Скрыть кнопки",
+    "🧪 Примеры",
+    "✍️ Своя монета",
+}
+
 def _looks_like_symbol_only(text: str) -> bool:
     t = (text or "").strip().upper()
     return bool(re.fullmatch(r"[A-Z]{2,10}(?:[/_-]?[A-Z]{3,6})", t))
@@ -28,6 +37,8 @@ def _normalize_query(text: str) -> str:
 async def free_text_to_dexter(message: Message):
     txt = (message.text or "").strip()
     if not txt:
+        return
+    if txt in _UI_BUTTONS:
         return
     if txt == "🧠 Dexter Research":
         return
