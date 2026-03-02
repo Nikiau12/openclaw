@@ -18,34 +18,34 @@ def _normalize_query(text: str) -> str:
     q = re.sub(r"\s+", " ", q).strip()
     if not q:
         return ""
-    # hard cap to keep it stable
     q = q[:700]
     if _looks_like_symbol_only(q):
-        # make it consistent for news mode
         return f"{q} news"
     return q
 
 @router.message(F.text & ~F.text.startswith("/"))
 async def free_text_to_dexter(message: Message):
-    # ignore the menu button text itself
-    if (message.text or "").strip() == "🧠 Dexter Research":
+    txt = (message.text or "").strip()
+    if not txt:
         return
 
-    q = _normalize_query(message.text or "")
+    # don't intercept the menu button label
+    if txt == "🧠 Dexter Research":
+        return
+
+    q = _normalize_query(txt)
     if not q:
         return
 
+    # quick UX: show we're working
     await message.answer("⏳ Думаю… (Dexter + AI)")
 
-    # Call OpenClaw dexter proxy with analysis enabled
     try:
-    try:
+        # Use shorter timeout for responsiveness
         data = await post("/dexter/run?analysis=1", {"query": q, "analysis": True}, timeout=20)
     except Exception:
         await message.answer("⚠️ Таймаут/ошибка при запросе Dexter. Попробуй ещё раз через минуту.")
         return
-    except Exception:
-        await message.answer("⚠️ Таймаут/ошибка при запросе Dexter. Попробуй ещё раз через минуту.")
-        return
+
     html = (data or {}).get("message_html") if isinstance(data, dict) else None
     await message.answer(html or "<i>Dexter unavailable</i>")
