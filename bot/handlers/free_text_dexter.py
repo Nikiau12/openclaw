@@ -4,6 +4,7 @@ import re
 import time
 from aiogram import Router, F
 from aiogram.types import Message
+from aiogram.exceptions import SkipHandler
 from aiogram.enums import ChatAction
 
 from bot.clients.api import post
@@ -39,9 +40,11 @@ async def free_text_to_dexter(message: Message):
     if not txt:
         return
     if txt in _UI_BUTTONS:
-        return
+        raise SkipHandler
+    if txt.startswith("🧠 "):
+        raise SkipHandler
     if txt == "🧠 Dexter Research":
-        return
+        raise SkipHandler
 
     q = _normalize_query(txt)
     if not q:
