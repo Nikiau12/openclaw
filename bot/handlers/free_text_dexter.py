@@ -76,4 +76,8 @@ async def free_text_to_dexter(message: Message):
     dt = time.monotonic() - t0
     html = (data or {}).get("message_html") if isinstance(data, dict) else None
     extra = "\n\n<i>⏱ dexter {:.1f}s</i>".format(dt)
-    await message.answer((html or "<i>Dexter unavailable</i>") + extra)
+    try:
+        await message.answer((html or "<i>Dexter unavailable</i>") + extra)
+    except Exception as e:
+        # fallback: send plain text if HTML/length fails
+        await message.answer(f"⚠️ Telegram send failed: {type(e).__name__}")
