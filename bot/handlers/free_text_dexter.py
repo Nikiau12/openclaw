@@ -4,8 +4,8 @@ import re
 import time
 from aiogram import Router, F
 from aiogram.types import Message
-from aiogram.exceptions import TelegramBadRequest
 from aiogram.enums import ChatAction
+from aiogram.exceptions import TelegramBadRequest
 
 from bot.clients.api import post
 
@@ -54,33 +54,41 @@ def _chunk_text(text: str, max_len: int = 3500) -> list[str]:
     t = text or ""
     if len(t) <= max_len:
         return [t]
-    out = []
-    i = 0
-    while i < len(t):
-        out.append(t[i:i+max_len])
-        i += max_len
-    return out
+    return [t[i:i + max_len] for i in range(0, len(t), max_len)]
 
-async def safe_send(message: Message, html: str, extra: str = "") -> None:
-    # 1) try HTML
+def _html_to_plain(html: str) -> str:
+    # rough but works for Telegram fallback
+    t = html or ""
+    t = re.sub(r"<br\s*/?>", "\n", t, flags=re.I)
+    t = re.sub(r"</p\s*>", "\n\n", t, flags=re.I)
+    t = re.sub(r"</li\s*>", "\n", t, flags=re.I)
+    t = re.sub(r"<li\s*>", "• ", t, flags=re.I)
+    t = re.sub(r"<[^>]+>", "", t)
+    # basic entities
+    t = t.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&").replace("&quot;", '"')
+    return t.strip()
+
+async def safe_send_html(message: Message, html: str, extra_html: str = "") -> None:
+    body_html = (html or "<i>Dexter unavailable</i>") + (extra_html or "")
+    # 1) Try HTML
     try:
-        await message.answer((html or "<i>Dexter unavailable</i>") + extra, parse_mode="HTML")
+        await message.answer(body_html, parse_mode="HTML")
         return
-    except TelegramBadRequest:
-        pass
-    except Exception:
-        # other send errors -> fallthrough to plain
-        pass
+    except TelegramBadRequest as e:
+        # show short reason, then fallback
+        reason = str(e)
+        await message.answer("⚠️ Telegram HTML rejected: " + (reason[:200] + ("…" if len(reason) > 200 else "")))
+    except Exception as e:
+        await message.answer("⚠️ Telegram send failed: " + type(e).__name__)
 
-    # 2) plain text fallback (strip tags roughly)
-    plain = re.sub(r"<[^>]+>", "", html or "")
-    plain = plain.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
-    plain = (plain + (re.sub(r"<[^>]+>", "", extra) if extra else "")).strip()
-
-    # 3) chunked plain text
+    # 2) Plain + chunk
+    plain = _html_to_plain(body_html)
+    if not plain:
+        plain = "Dexter response empty"
     for part in _chunk_text(plain, 3500):
         if part.strip():
             await message.answer(part)
+
 @router.message(F.text & ~F.text.startswith("/"))
 async def free_text_to_dexter(message: Message):
     txt = (message.text or "").strip()
@@ -108,8 +116,4 @@ async def free_text_to_dexter(message: Message):
     dt = time.monotonic() - t0
     html = (data or {}).get("message_html") if isinstance(data, dict) else None
     extra = "\n\n<i>⏱ dexter {:.1f}s</i>".format(dt)
-    try:
-        await safe_send(message, html or "<i>Dexter unavailable</i>", extra)
-    except Exception as e:
-        # fallback: send plain text if HTML/length fails
-        await message.answer(f"⚠️ Telegram send failed: {type(e).__name__}")
+    await safe_send_html(message, html or "<i>Dexter unavailable</i>", extra)
