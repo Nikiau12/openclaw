@@ -4,6 +4,7 @@ import re
 import time
 from aiogram import Router, F
 from aiogram.types import Message
+from aiogram.enums import ChatAction
 
 from bot.clients.api import post
 
@@ -11,7 +12,6 @@ router = Router()
 
 def _looks_like_symbol_only(text: str) -> bool:
     t = (text or "").strip().upper()
-    # BTCUSDT / BTC_USDT / BTC-USDT / ADA/USDT
     return bool(re.fullmatch(r"[A-Z]{2,10}(?:[/_-]?[A-Z]{3,6})", t))
 
 def _normalize_query(text: str) -> str:
@@ -29,8 +29,6 @@ async def free_text_to_dexter(message: Message):
     txt = (message.text or "").strip()
     if not txt:
         return
-
-    # don't intercept the menu button label
     if txt == "🧠 Dexter Research":
         return
 
@@ -38,12 +36,16 @@ async def free_text_to_dexter(message: Message):
     if not q:
         return
 
-    # quick UX: show we're working
-    await message.answer("⏳ Думаю… (Dexter + AI)")
-    t0 = time.monotonic()
-
+    # UX: show typing + immediate progress message
     try:
-        # Use shorter timeout for responsiveness
+        await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
+    except Exception:
+        pass
+
+    await message.answer("⏳ Думаю… (Dexter + AI)")
+
+    t0 = time.monotonic()
+    try:
         data = await post("/dexter/run?analysis=1", {"query": q, "analysis": True}, timeout=20)
     except Exception:
         await message.answer("⚠️ Таймаут/ошибка при запросе Dexter. Попробуй ещё раз через минуту.")
@@ -51,5 +53,4 @@ async def free_text_to_dexter(message: Message):
 
     dt = time.monotonic() - t0
     html = (data or {}).get("message_html") if isinstance(data, dict) else None
-    extra = f"\n\n<i>⏱ took {dt:.1f}s</i>"
-    await message.answer((html or "<i>Dexter unavailable</i>") + extra)
+    await message.answer((html or "<i>Dexter unavailable</i>") + f"\n\n<i>⏱ {dt:.1f}s</i>")
