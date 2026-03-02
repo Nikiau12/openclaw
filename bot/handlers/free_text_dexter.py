@@ -63,4 +63,6 @@ async def free_text_to_dexter(message: Message):
 
     dt = time.monotonic() - t0
     html = (data or {}).get("message_html") if isinstance(data, dict) else None
-    await message.answer((html or "<i>Dexter unavailable</i>") + f"\n\n<i>⏱ {dt:.1f}s</i>")
+    await message.answer((html or "<i>Dexter unavailable</i>") + f"
+
+<i>⏱ dexter {dt:.1f}s</i>")
