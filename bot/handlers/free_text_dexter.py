@@ -4,15 +4,15 @@ import re
 import time
 from aiogram import Router, F
 from aiogram.types import Message
-from aiogram.exceptions import SkipHandler
 from aiogram.enums import ChatAction
 
 from bot.clients.api import post
 
 router = Router()
 
-# UI buttons handled in handlers/chat.py (do not intercept here)
+# UI buttons handled in handlers/chat.py — do NOT intercept here
 _UI_BUTTONS = {
+    "🧠 Dexter Research",
     "⬅️ Назад",
     "📘 Полный гайд",
     "❌ Скрыть кнопки",
@@ -34,31 +34,27 @@ def _normalize_query(text: str) -> str:
         return f"{q} news"
     return q
 
-@router.message(F.text & ~F.text.startswith("/"))
+@router.message(
+    F.text
+    & ~F.text.startswith("/")
+    & ~F.text.in_(_UI_BUTTONS)
+    & ~F.text.startswith("🧠 ")
+)
 async def free_text_to_dexter(message: Message):
     txt = (message.text or "").strip()
-    if not txt:
-        return
-    if txt in _UI_BUTTONS:
-        raise SkipHandler
-    if txt.startswith("🧠 "):
-        raise SkipHandler
-    if txt == "🧠 Dexter Research":
-        raise SkipHandler
-
     q = _normalize_query(txt)
     if not q:
         return
 
-    # UX: show typing + immediate progress message
+    # UX: show typing + progress
     try:
         await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
     except Exception:
         pass
 
     await message.answer("⏳ Думаю… (Dexter + AI)")
-
     t0 = time.monotonic()
+
     try:
         data = await post("/dexter/run?analysis=1", {"query": q, "analysis": True}, timeout=20)
     except Exception:
