@@ -4,6 +4,7 @@ import re
 import time
 from aiogram import Router, F
 from aiogram.types import Message
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.enums import ChatAction
 
 from bot.clients.api import post
@@ -49,6 +50,37 @@ def _normalize_query(text: str) -> str:
         return f"{q} news"
     return q
 
+def _chunk_text(text: str, max_len: int = 3500) -> list[str]:
+    t = text or ""
+    if len(t) <= max_len:
+        return [t]
+    out = []
+    i = 0
+    while i < len(t):
+        out.append(t[i:i+max_len])
+        i += max_len
+    return out
+
+async def safe_send(message: Message, html: str, extra: str = "") -> None:
+    # 1) try HTML
+    try:
+        await message.answer((html or "<i>Dexter unavailable</i>") + extra, parse_mode="HTML")
+        return
+    except TelegramBadRequest:
+        pass
+    except Exception:
+        # other send errors -> fallthrough to plain
+        pass
+
+    # 2) plain text fallback (strip tags roughly)
+    plain = re.sub(r"<[^>]+>", "", html or "")
+    plain = plain.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
+    plain = (plain + (re.sub(r"<[^>]+>", "", extra) if extra else "")).strip()
+
+    # 3) chunked plain text
+    for part in _chunk_text(plain, 3500):
+        if part.strip():
+            await message.answer(part)
 @router.message(F.text & ~F.text.startswith("/"))
 async def free_text_to_dexter(message: Message):
     txt = (message.text or "").strip()
@@ -77,7 +109,7 @@ async def free_text_to_dexter(message: Message):
     html = (data or {}).get("message_html") if isinstance(data, dict) else None
     extra = "\n\n<i>⏱ dexter {:.1f}s</i>".format(dt)
     try:
-        await message.answer((html or "<i>Dexter unavailable</i>") + extra)
+        await safe_send(message, html or "<i>Dexter unavailable</i>", extra)
     except Exception as e:
         # fallback: send plain text if HTML/length fails
         await message.answer(f"⚠️ Telegram send failed: {type(e).__name__}")
