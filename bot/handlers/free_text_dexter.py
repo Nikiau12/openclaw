@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 from aiogram import Router, F
 from aiogram.types import Message
 
@@ -39,6 +40,7 @@ async def free_text_to_dexter(message: Message):
 
     # quick UX: show we're working
     await message.answer("⏳ Думаю… (Dexter + AI)")
+    t0 = time.monotonic()
 
     try:
         # Use shorter timeout for responsiveness
@@ -47,5 +49,7 @@ async def free_text_to_dexter(message: Message):
         await message.answer("⚠️ Таймаут/ошибка при запросе Dexter. Попробуй ещё раз через минуту.")
         return
 
+    dt = time.monotonic() - t0
     html = (data or {}).get("message_html") if isinstance(data, dict) else None
-    await message.answer(html or "<i>Dexter unavailable</i>")
+    extra = f"\n\n<i>⏱ took {dt:.1f}s</i>"
+    await message.answer((html or "<i>Dexter unavailable</i>") + extra)
