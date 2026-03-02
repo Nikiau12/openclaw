@@ -76,24 +76,10 @@ def _normalize_telegram_html(html: str) -> str:
     t = t.replace("</br>", "<br>").replace("</BR>", "<br>")
     return t
 async def safe_send_html(message: Message, html: str, extra_html: str = "") -> None:
-    body_html = (html or "<i>Dexter unavailable</i>") + (extra_html or "")
-    body_html = _normalize_telegram_html(body_html)
-    # 1) Try HTML
-    try:
-        await message.answer(body_html, parse_mode="HTML")
-        return
-    except TelegramBadRequest as e:
-        # show short reason, then fallback
-        reason = str(e)
-        await message.answer("⚠️ Telegram HTML rejected: " + (reason[:200] + ("…" if len(reason) > 200 else "")))
-    except Exception as e:
-        await message.answer("⚠️ Telegram send failed: " + type(e).__name__)
-
-    # 2) Plain + chunk
+    body_html = (html or "") + (extra_html or "")
     plain = _html_to_plain(body_html)
-    # hard-escape anything that could look like HTML
     plain = plain.replace("<", "⟨").replace(">", "⟩")
-    if not plain:
+    if not plain.strip():
         plain = "Dexter response empty"
     for part in _chunk_text(plain, 3500):
         if part.strip():
