@@ -3,6 +3,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from bot.config import TELEGRAM_BOT_TOKEN
 from bot.handlers.chat import router as chat_router
+from bot.handlers.free_text_dexter import router as free_text_router
 from bot.handlers.market import router as market_router
 
 async def main():
@@ -11,6 +12,7 @@ async def main():
     bot = Bot(token=TELEGRAM_BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
     dp = Dispatcher()
     dp.include_router(chat_router)
+    dp.include_router(free_text_router)
     dp.include_router(market_router)
     await dp.start_polling(bot)
 
