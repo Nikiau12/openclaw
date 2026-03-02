@@ -24,8 +24,7 @@ app.include_router(dexter_router)
 
 @app.get("/health")
 def health():
-    return {"ok": True}
-
+    return {"ok": True, "build": (os.getenv("RAILWAY_GIT_COMMIT_SHA") or os.getenv("GIT_SHA") or "unknown")}
 @app.get("/")
 def root():
     return {"ok": True, "service": "openclaw_api"}
