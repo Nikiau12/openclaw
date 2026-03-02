@@ -393,9 +393,7 @@ async def plan_v3(req: PlanRequest):
 
         except Exception as e:
             # DO NOT break API startup/healthchecks because of structure mode.
-            msg += f"
-⚠️ <b>Structure mode error</b>: <code>{str(e)}</code>
-"
+            msg += f"\n⚠️ <b>Structure mode error</b>: <code>{str(e)}</code>\n"
             payload["error"] = str(e)
 
         msg += "\n🚨 <b>Риск-правило</b>: стоп обязателен.\n"
