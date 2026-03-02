@@ -401,7 +401,7 @@ async def plan_custom_hint(m: Message):
     await m.answer(msg, parse_mode="HTML")
 
 
-@router.message()
+@router.message(F.text.startswith("/"))
 async def any_text(m: Message):
     txt = (m.text or "").strip()
     if not txt or txt.startswith("/"):
