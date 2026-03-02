@@ -1,6 +1,19 @@
 import os
 import aiohttp
 
+
+# Keep-alive session (reuse across requests)
+_SESSION: aiohttp.ClientSession | None = None
+
+def _timeout(timeout: int) -> aiohttp.ClientTimeout:
+    return aiohttp.ClientTimeout(total=timeout)
+
+async def _get_session(timeout: int) -> aiohttp.ClientSession:
+    global _SESSION
+    if _SESSION is not None and not _SESSION.closed:
+        return _SESSION
+    _SESSION = aiohttp.ClientSession(timeout=_timeout(timeout))
+    return _SESSION
 _SESSION: aiohttp.ClientSession | None = None
 
 async def _session(timeout: int) -> aiohttp.ClientSession:
