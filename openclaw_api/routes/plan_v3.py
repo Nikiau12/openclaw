@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 import httpx
 from html import escape
 
@@ -105,10 +106,12 @@ async def plan_alias(req: PlanRequest):
 
 
 @router.post("/plan/v3")
-async def plan_v3(req: PlanRequest):
+async def plan_v3(req: PlanRequest, mode: Optional[str] = None):
     try:
         sym = normalize_symbol(req.symbol)
-        mode = (req.mode or "classic").strip().lower()
+        mode = (mode or req.mode or "classic").strip().lower()
+
+        payload = {"symbol": sym, "mode": mode}
 
         # 24h summary
         async with httpx.AsyncClient(timeout=12.0) as client:
