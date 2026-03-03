@@ -95,6 +95,19 @@ async def free_text_to_dexter(message: Message):
     if not q:
         return
 
+    # plan-first for bare tickers: instant UX
+    plan_first = _looks_like_symbol_only(txt)
+    if plan_first:
+        try:
+            sym = txt.strip().upper().replace("-", "_").replace("/", "_")
+            plan = await post("/plan/v3", {"symbol": sym, "mode": "structure"}, timeout=15)
+            plan_html = (plan or {}).get("message_html") if isinstance(plan, dict) else None
+            if plan_html:
+                # send as plain to avoid Telegram HTML issues
+                await message.answer(_html_to_plain(plan_html), parse_mode=None)
+        except Exception:
+            pass
+
     # UX
     try:
         await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
@@ -104,7 +117,7 @@ async def free_text_to_dexter(message: Message):
 
     t0 = time.monotonic()
     try:
-        data = await post("/dexter/run?analysis=1", {"query": q, "analysis": True}, timeout=20)
+        data = await post("/dexter/run?analysis=1", {"query": q, "analysis": True}, timeout=45)
     except Exception:
         await message.answer("⚠️ Таймаут/ошибка при запросе Dexter. Попробуй ещё раз через минуту.")
         return
