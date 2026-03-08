@@ -137,7 +137,7 @@ async def free_text_to_dexter(message: Message):
 
     t0 = time.monotonic()
     try:
-        data = await post("/dexter/run?analysis=1", {"query": q, "analysis": True}, timeout=45)
+        data = await post("/dexter/chat", {"query": q, "symbol": sym, "analysis": True}, timeout=45)
     except Exception:
         await message.answer("⚠️ Таймаут/ошибка при запросе Dexter. Попробуй ещё раз через минуту.")
         return

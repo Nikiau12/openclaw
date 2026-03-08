@@ -94,3 +94,22 @@ async def dexter_run(req: DexterRunRequest, analysis: Optional[str] = Query(defa
                 "plan": plan,
             },
         }
+
+
+
+@router.post("/chat")
+async def dexter_chat(req: dict):
+    """
+    Proxy to Service C /chat (free-form trading chat).
+    """
+    base = (os.getenv("DEXTER_AGENT_URL") or "").rstrip("/")
+    if not base:
+        raise HTTPException(status_code=503, detail="DEXTER_AGENT_URL is not set")
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            r = await client.post(f"{base}/chat", json=req)
+            r.raise_for_status()
+            return r.json()
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=str(e))
