@@ -100,6 +100,23 @@ def _regime_from_4h(per_tf: list[dict]) -> tuple[str, float, float]:
     return ("RANGE", gap_ratio, rsi)
 
 
+def _trend_dir_from_4h(per_tf: list[dict]) -> str:
+    x4 = None
+    for x in per_tf:
+        if x.get("ok") and str(x.get("tf", "")).lower().strip() == "4h":
+            x4 = x
+            break
+    if not x4:
+        return "FLAT"
+    ema9 = float(x4["ema9"])
+    ema21 = float(x4["ema21"])
+    if ema9 > ema21:
+        return "UP"
+    if ema9 < ema21:
+        return "DOWN"
+    return "FLAT"
+
+
 @router.post("/plan")
 async def plan_alias(req: PlanRequest):
     return await plan_v3(req)
@@ -212,6 +229,7 @@ async def plan_v3(req: PlanRequest, mode: Optional[str] = None):
         payload = {
             "tf": "4H",
             "regime": None,
+            "trend_dir": None,
             "range": {"low": None, "high": None},
             "levels": {
                 "long": {"trigger": None, "invalid": None},
@@ -254,6 +272,8 @@ async def plan_v3(req: PlanRequest, mode: Optional[str] = None):
             vp = build_vp(c4, bins=48, use_last_n=200)
 
             regime, gap_ratio, rsi4 = _regime_from_4h(per_tf)
+            trend_dir = _trend_dir_from_4h(per_tf)
+            payload["trend_dir"] = trend_dir
 
             atr4 = _pick_atr(per_tf)
             if atr4 <= 0:
