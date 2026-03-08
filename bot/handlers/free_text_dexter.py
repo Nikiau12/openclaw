@@ -1,6 +1,26 @@
 from __future__ import annotations
 
 import re
+
+def strip_ai_block(html: str) -> str:
+    """
+    Убирает AI-аналитику (Key points / Interpretation / Alignment / Scenarios / Confidence),
+    но оставляет News + Sources + OpenClaw plan.
+    """
+    if not html:
+        return html
+    # 1) убрать большой <div> с аналитикой (внутри обычно есть <h4>Ключевые пункты</h4>)
+    html2 = re.sub(r"<div>\s*<div>🤖 AI:.*?</div>\s*<h4>Ключевые пункты</h4>.*?</div>\s*", "", html, flags=re.S)
+    # 2) на всякий случай убрать любые секции с заголовками аналитики, если они не в первом div
+    html2 = re.sub(r"<h4>Ключевые пункты</h4>.*?(?=<b>🗂 Sources</b>)", "", html2, flags=re.S)
+    html2 = re.sub(r"<h4>Интерпретация</h4>.*?(?=<h4>|<b>🗂 Sources</b>)", "", html2, flags=re.S)
+    html2 = re.sub(r"<h4>Согласование</h4>.*?(?=<h4>|<b>🗂 Sources</b>)", "", html2, flags=re.S)
+    html2 = re.sub(r"<h4>Сценарии</h4>.*?(?=<div><b>Уверенность:|<b>🗂 Sources</b>)", "", html2, flags=re.S)
+    html2 = re.sub(r"<div><b>Уверенность:.*?</div>", "", html2, flags=re.S)
+    return html2
+
+
+import re
 import time
 from aiogram import Router, F
 from aiogram.types import Message
@@ -124,5 +144,6 @@ async def free_text_to_dexter(message: Message):
 
     dt = time.monotonic() - t0
     html = (data or {}).get("message_html") if isinstance(data, dict) else None
+    html = strip_ai_block(html) if html else html
     extra = "\n\n<i>⏱ dexter {:.1f}s</i>".format(dt)
     await safe_send_html(message, html or "<i>Dexter unavailable</i>", extra)
