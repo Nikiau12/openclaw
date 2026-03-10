@@ -144,7 +144,6 @@ async def free_text_to_dexter(message: Message):
 
     # 2) AI вторым сообщением, только если want_ai
     if want_ai:
-        await message.answer("⏳ Думаю… (Dexter + AI)")
         t1 = time.monotonic()
         try:
             ai_payload = {"query": q_clean, "analysis": True}
