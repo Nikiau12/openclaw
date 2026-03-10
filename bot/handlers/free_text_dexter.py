@@ -116,9 +116,9 @@ async def free_text_to_dexter(message: Message):
     if not q:
         return
 
-    sym = txt.strip().upper().replace("-", "_").replace("/", "_")
     want_ai = bool(re.search(r"(?:^|\s)ai(?:\s|$)", (q or "").lower()))
     q_clean = re.sub(r"\s+ai\s*$", "", q, flags=re.IGNORECASE).strip()
+    sym = q_clean.strip().upper().replace("-", "_").replace("/", "_") if _looks_like_symbol_only(q_clean) else None
 
     # 1) PLAN-FIRST всегда
     try:
@@ -128,7 +128,10 @@ async def free_text_to_dexter(message: Message):
 
     t0 = time.monotonic()
     try:
-        plan_data = await post("/dexter/chat", {"query": q_clean, "symbol": sym, "analysis": False}, timeout=20)
+        plan_payload = {"query": q_clean, "analysis": False}
+        if sym:
+            plan_payload["symbol"] = sym
+        plan_data = await post("/dexter/chat", plan_payload, timeout=20)
         plan_dt = time.monotonic() - t0
         plan_html = (plan_data or {}).get("message_html") if isinstance(plan_data, dict) else None
         plan_html = strip_ai_block(plan_html) if plan_html else plan_html
@@ -144,7 +147,10 @@ async def free_text_to_dexter(message: Message):
         await message.answer("⏳ Думаю… (Dexter + AI)")
         t1 = time.monotonic()
         try:
-            ai_data = await post("/dexter/chat", {"query": q_clean, "symbol": sym, "analysis": True}, timeout=45)
+            ai_payload = {"query": q_clean, "analysis": True}
+            if sym:
+                ai_payload["symbol"] = sym
+            ai_data = await post("/dexter/chat", ai_payload, timeout=45)
             ai_dt = time.monotonic() - t1
             ai_html = (ai_data or {}).get("message_html") if isinstance(ai_data, dict) else None
             ai_extra = "\n\n<i>⏱ ai {:.1f}s</i>".format(ai_dt)
