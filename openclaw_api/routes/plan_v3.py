@@ -198,6 +198,13 @@ async def plan_v3(req: PlanRequest, mode: Optional[str] = None):
         if quote_vol:
             why_items.append(f"24h quote volume: {quote_vol:,.0f}")
 
+        if change_pct >= 2.0:
+            news_context = "Short-term flow is supportive; market tone is mildly bullish over the last 24h."
+        elif change_pct <= -2.0:
+            news_context = "Short-term flow is bearish; market tone is mildly negative over the last 24h."
+        else:
+            news_context = "Short-term headline/news proxy is neutral; no dominant directional pressure in the last 24h."
+
         analyze_data = {
             "symbol": sym,
             "summary": summary,
@@ -219,7 +226,7 @@ async def plan_v3(req: PlanRequest, mode: Optional[str] = None):
                 "invalidation": "N/A",
                 "targets": "N/A",
             },
-            "news_context": "News context is not yet connected in /plan_v3 classic mode.",
+            "news_context": news_context,
             "risk_note": "Стоп обязателен.",
         }
 
