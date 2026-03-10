@@ -248,8 +248,8 @@ async def scan(m: Message):
     try:
         parts = (m.text or "").split()
 
-        tf = "15m"
-        mult = 2.5
+        tf = "5m"
+        mult = 1.5
         limit = 10
 
         if len(parts) > 1:
@@ -258,7 +258,7 @@ async def scan(m: Message):
             try:
                 mult = float(parts[2])
             except Exception:
-                mult = 2.5
+                mult = 1.5
         if len(parts) > 3:
             try:
                 limit = int(parts[3])
@@ -273,8 +273,8 @@ async def scan(m: Message):
         payload = {
             "quote": "USDT",
             "limit": limit,
-            "candidate_pool": 200,
-            "min_quote_volume_24h": 10_000_000,
+            "candidate_pool": 80,
+            "min_quote_volume_24h": 5_000_000,
             "max_abs_change_24h": 40,
             "volume_spike": {
                 "tf": tf,
@@ -285,6 +285,10 @@ async def scan(m: Message):
         }
 
         data = await post("/market/scan", payload)
+        if isinstance(data, dict) and data.get("message_html"):
+            await m.answer(data["message_html"], parse_mode="HTML", disable_web_page_preview=True)
+            return
+
         items = data.get("items", []) if isinstance(data, dict) else []
 
         if not items:
