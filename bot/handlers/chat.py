@@ -116,7 +116,7 @@ async def dexter_quick_pick(m: Message):
 
     # Try Dexter -> fallback to normal plan
     try:
-        dex = await post("/dexter/run?analysis=1", {"query": symbol, "analysis": True})
+        dex = await post("/dexter/chat", {"query": symbol, "symbol": symbol, "analysis": True})
         if isinstance(dex, dict) and dex.get("ok") and dex.get("message_html"):
             await m.answer(dex["message_html"], parse_mode="HTML", disable_web_page_preview=True)
             return
@@ -171,7 +171,7 @@ async def plan(m: Message):
     # 1) Dexter path (only sometimes)
     if use_dex:
         try:
-            dex = await post("/dexter/run", {"query": symbol})
+            dex = await post("/dexter/chat", {"query": symbol, "symbol": symbol, "analysis": False})
             if isinstance(dex, dict) and dex.get("ok") and dex.get("message_html"):
                 await m.answer(dex["message_html"], parse_mode="HTML", disable_web_page_preview=True)
                 return

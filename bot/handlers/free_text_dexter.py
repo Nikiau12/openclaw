@@ -20,7 +20,6 @@ def strip_ai_block(html: str) -> str:
     return html2
 
 
-import re
 import time
 from aiogram import Router, F
 from aiogram.types import Message
@@ -115,36 +114,37 @@ async def free_text_to_dexter(message: Message):
     if not q:
         return
 
-    # plan-first for bare tickers: instant UX
-    plan_first = _looks_like_symbol_only(txt)
-    if plan_first:
-        try:
-            sym = txt.strip().upper().replace("-", "_").replace("/", "_")
-            plan = await post("/plan/v3", {"symbol": sym, "mode": "structure"}, timeout=15)
-            plan_html = (plan or {}).get("message_html") if isinstance(plan, dict) else None
-            if plan_html:
-                # send as plain to avoid Telegram HTML issues
-                await message.answer(_html_to_plain(plan_html), parse_mode=None)
-        except Exception:
-            pass
+    sym = txt.strip().upper().replace("-", "_").replace("/", "_")
+    want_ai = bool(re.search(r"(?:^|\s)ai(?:\s|$)", (q or "").lower()))
+    q_clean = re.sub(r"\s+ai\s*$", "", q, flags=re.IGNORECASE).strip()
 
-    # UX
+    # 1) PLAN-FIRST всегда
     try:
         await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
     except Exception:
         pass
-    await message.answer("⏳ Думаю… (Dexter + AI)")
 
     t0 = time.monotonic()
     try:
-        want_ai = (" ai" in (" " + (q or "").lower())) or (q or "").lower().strip().endswith("ai")
-        data = await post("/dexter/chat", {"query": q, "symbol": sym, "analysis": bool(want_ai)}, timeout=45)
+        plan_data = await post("/dexter/chat", {"query": q_clean, "symbol": sym, "analysis": False}, timeout=20)
+        plan_dt = time.monotonic() - t0
+        plan_html = (plan_data or {}).get("message_html") if isinstance(plan_data, dict) else None
+        plan_html = strip_ai_block(plan_html) if plan_html else plan_html
+        plan_extra = "\n\n<i>⏱ plan {:.1f}s</i>".format(plan_dt)
+        await safe_send_html(message, plan_html or "<i>Dexter unavailable</i>", plan_extra)
     except Exception:
-        await message.answer("⚠️ Таймаут/ошибка при запросе Dexter. Попробуй ещё раз через минуту.")
+        await message.answer("⚠️ Dexter: plan-first unavailable.")
         return
 
-    dt = time.monotonic() - t0
-    html = (data or {}).get("message_html") if isinstance(data, dict) else None
-    html = strip_ai_block(html) if html else html
-    extra = "\n\n<i>⏱ dexter {:.1f}s</i>".format(dt)
-    await safe_send_html(message, html or "<i>Dexter unavailable</i>", extra)
+    # 2) AI вторым сообщением, только если want_ai
+    if want_ai:
+        await message.answer("⏳ Думаю… (Dexter + AI)")
+        t1 = time.monotonic()
+        try:
+            ai_data = await post("/dexter/chat", {"query": q_clean, "symbol": sym, "analysis": True}, timeout=45)
+            ai_dt = time.monotonic() - t1
+            ai_html = (ai_data or {}).get("message_html") if isinstance(ai_data, dict) else None
+            ai_extra = "\n\n<i>⏱ ai {:.1f}s</i>".format(ai_dt)
+            await safe_send_html(message, ai_html or "<i>AI empty</i>", ai_extra)
+        except Exception:
+            await message.answer("🤖 AI: OFF • timeout/error")
