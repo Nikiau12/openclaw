@@ -41,7 +41,7 @@ async def dexter_health():
     if not base:
         raise HTTPException(status_code=503, detail="DEXTER_AGENT_URL not configured")
     try:
-        async with httpx.AsyncClient(timeout=35.0) as client:
+        async with httpx.AsyncClient(timeout=50.0) as client:
             r = await client.get(f"{base}/health")
             r.raise_for_status()
             return r.json()
@@ -62,7 +62,7 @@ async def dexter_run(req: DexterRunRequest, analysis: Optional[str] = Query(defa
     try:
         # analysis flag: body has priority, then query param
         flag = bool(req.analysis) if req.analysis is not None else (str(analysis).strip().lower() in ("1","true","yes","y"))
-        async with httpx.AsyncClient(timeout=35.0) as client:
+        async with httpx.AsyncClient(timeout=50.0) as client:
             r = await client.post(f"{base}/run", json={"query": q, "analysis": flag})
             r.raise_for_status()
             return r.json()
@@ -107,7 +107,7 @@ async def dexter_chat(req: dict):
         raise HTTPException(status_code=503, detail="DEXTER_AGENT_URL is not set")
 
     try:
-        async with httpx.AsyncClient(timeout=35.0) as client:
+        async with httpx.AsyncClient(timeout=50.0) as client:
             r = await client.post(f"{base}/chat", json=req)
             r.raise_for_status()
             return r.json()
