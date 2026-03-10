@@ -181,18 +181,18 @@ async def plan_v3(req: PlanRequest, mode: Optional[str] = None):
             "NEUTRAL": "Neutral",
         }
 
-        summary_parts = [
-            f"Last: {fmt_price(last)}",
-            f"24h: {change_pct:+.2f}%",
-        ]
-        if tf_line:
-            summary_parts.append(
-                tf_line.replace("📊 <b>TF</b>: ", "")
-                .replace("\n", "")
-                .replace("<code>", "")
-                .replace("</code>", "")
-            )
-        summary = " | ".join(summary_parts)
+        if bias == "BULLISH":
+            summary_lead = "Momentum is constructive across the monitored timeframes."
+        elif bias == "BEARISH":
+            summary_lead = "Momentum is weak and downside pressure remains active."
+        else:
+            summary_lead = "Market structure is mixed, with no clean directional edge."
+
+        summary = (
+            f"{summary_lead} "
+            f"Last price: {fmt_price(last)}. "
+            f"24h change: {change_pct:+.2f}%."
+        )
 
         why_items = reasons[:] if reasons else []
         if quote_vol:
