@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 import httpx
 
 from openclaw_api.indicators.candles import parse_mexc_klines, drop_unclosed_tail
+from openclaw_api.formatters.scan_formatter import format_scan_message
 
 # reuse helpers from market_top
 from openclaw_api.routes.market_top import (
@@ -170,7 +171,15 @@ async def market_scan(req: MarketScanRequest) -> Dict[str, Any]:
 
             # stage 2: optional volume spike
             if req.volume_spike is None:
-                return {"ok": True, "mode": "tickers_only", "count": len(pool), "items": pool[: req.limit]}
+                result = {
+                    "ok": True,
+                    "mode": "tickers_only",
+                    "tf": "24h",
+                    "count": len(pool),
+                    "items": pool[: req.limit],
+                }
+                result["message_html"] = format_scan_message(result)
+                return result
 
             tf = normalize_interval(req.volume_spike.tf)
             lookback = int(req.volume_spike.lookback)
@@ -214,7 +223,7 @@ async def market_scan(req: MarketScanRequest) -> Dict[str, Any]:
         # ranking: spike first, then quote volume
         items.sort(key=lambda z: (z["volume_spike"], z["quote_volume_24h"]), reverse=True)
 
-        return {
+        result = {
             "ok": True,
             "mode": "volume_spike",
             "tf": req.volume_spike.tf,
@@ -224,6 +233,8 @@ async def market_scan(req: MarketScanRequest) -> Dict[str, Any]:
             "count": len(items),
             "items": items[: req.limit],
         }
+        result["message_html"] = format_scan_message(result)
+        return result
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
