@@ -242,7 +242,7 @@ async def plan_v3(req: PlanRequest, mode: Optional[str] = None):
                     analyze_data["bullish_scenario"] = {
                         "entry_logic": f"Break and hold above {fmt_price(trigger)}",
                         "invalidation": fmt_price(invalid),
-                        "targets": "Open / not yet modeled",
+                        "targets": [fmt_price(trigger + atr_ref), fmt_price(trigger + 2 * atr_ref)],
                     }
 
                 elif bias == "BEARISH":
@@ -253,7 +253,7 @@ async def plan_v3(req: PlanRequest, mode: Optional[str] = None):
                     analyze_data["bearish_scenario"] = {
                         "entry_logic": f"Break and hold below {fmt_price(trigger)}",
                         "invalidation": fmt_price(invalid),
-                        "targets": "Open / not yet modeled",
+                        "targets": [fmt_price(trigger - atr_ref), fmt_price(trigger - 2 * atr_ref)],
                     }
 
                 else:
@@ -267,12 +267,12 @@ async def plan_v3(req: PlanRequest, mode: Optional[str] = None):
                     analyze_data["bullish_scenario"] = {
                         "entry_logic": f"Break and hold above {fmt_price(lg_tr)}",
                         "invalidation": fmt_price(lg_iv),
-                        "targets": "Open / not yet modeled",
+                        "targets": [fmt_price(lg_tr + atr_ref), fmt_price(lg_tr + 2 * atr_ref)],
                     }
                     analyze_data["bearish_scenario"] = {
                         "entry_logic": f"Break and hold below {fmt_price(sh_tr)}",
                         "invalidation": fmt_price(sh_iv),
-                        "targets": "Open / not yet modeled",
+                        "targets": [fmt_price(sh_tr - atr_ref), fmt_price(sh_tr - 2 * atr_ref)],
                     }
 
             msg = format_analyze_message(analyze_data)
