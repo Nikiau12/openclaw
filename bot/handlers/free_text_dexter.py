@@ -42,6 +42,63 @@ _UI_BUTTONS = {
     "✍️ Своя монета",
 }
 
+_SYMBOL_ALIASES = {
+    "BTCUSDT": [
+        "btc", "bitcoin", "xbt", "биток", "биткоин", "биткойн", "биткоинa", "битка", "битку",
+    ],
+    "ETHUSDT": [
+        "eth", "ethereum", "ether", "эфир", "эфириум",
+    ],
+    "SOLUSDT": [
+        "sol", "solana", "сол", "солана",
+    ],
+    "BNBUSDT": [
+        "bnb", "binance coin", "бинанс", "бинанс коин",
+    ],
+    "XRPUSDT": [
+        "xrp", "ripple", "рипл",
+    ],
+    "ADAUSDT": [
+        "ada", "cardano", "кардано",
+    ],
+    "DOGEUSDT": [
+        "doge", "dogecoin", "дог", "доги", "догикоин", "додж", "доджкоин",
+    ],
+    "LINKUSDT": [
+        "link", "chainlink", "чейнлинк",
+    ],
+    "AVAXUSDT": [
+        "avax", "avalanche", "авакс", "аваланч",
+    ],
+    "SUIUSDT": [
+        "sui", "суи",
+    ],
+}
+
+_AI_HINTS = [
+    " ai",
+    "анализ",
+    "подроб",
+    "разбор",
+    "что думаешь",
+    "что скажешь",
+    "мнение",
+    "вход",
+    "войти",
+    "сделк",
+    "сетап",
+    "сценари",
+    "стоп",
+    "риск",
+    "long",
+    "short",
+    "лонг",
+    "шорт",
+    "entry",
+    "setup",
+    "invalidation",
+]
+
 def _looks_like_symbol_only(text: str) -> bool:
     t = (text or "").strip().upper()
     return bool(re.fullmatch(r"[A-Z]{2,10}(?:[/_-]?[A-Z]{3,6})", t))
@@ -70,6 +127,34 @@ def _normalize_query(text: str) -> str:
     if _looks_like_symbol_only(q):
         return f"{q} news"
     return q
+
+def _extract_symbol_from_text(text: str) -> str | None:
+    t = (text or "").strip().lower()
+    if not t:
+        return None
+
+    # 1) direct ticker-like text
+    raw = (text or "").strip().upper().replace("-", "").replace("/", "").replace("_", "")
+    if raw.endswith("USDT") and re.fullmatch(r"[A-Z]{2,12}USDT", raw):
+        return raw
+    if re.fullmatch(r"[A-Z]{2,10}", raw):
+        return raw + "USDT"
+
+    # 2) alias dictionary
+    padded = f" {t} "
+    for symbol, aliases in _SYMBOL_ALIASES.items():
+        for alias in aliases:
+            a = alias.lower().strip()
+            if not a:
+                continue
+            if re.search(rf"(^|[^a-zа-я0-9]){re.escape(a)}([^a-zа-я0-9]|$)", padded, flags=re.IGNORECASE):
+                return symbol
+
+    return None
+
+def _wants_ai_from_text(text: str) -> bool:
+    t = " " + ((text or "").strip().lower()) + " "
+    return any(h in t for h in _AI_HINTS)
 
 def _chunk_text(text: str, max_len: int = 3500) -> list[str]:
     t = text or ""
@@ -116,9 +201,12 @@ async def free_text_to_dexter(message: Message):
     if not q:
         return
 
-    want_ai = bool(re.search(r"(?:^|\s)ai(?:\s|$)", (q or "").lower()))
+    want_ai = _wants_ai_from_text(q)
     q_clean = re.sub(r"\s+ai\s*$", "", q, flags=re.IGNORECASE).strip()
-    sym = q_clean.strip().upper().replace("-", "_").replace("/", "_") if _looks_like_symbol_only(q_clean) else None
+    sym = _extract_symbol_from_text(q_clean)
+
+    if sym and not _looks_like_symbol_only(q_clean):
+        q_clean = q_clean[:700]
 
     # 1) PLAN-FIRST всегда
     try:
