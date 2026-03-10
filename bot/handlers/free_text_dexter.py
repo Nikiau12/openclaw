@@ -44,19 +44,25 @@ _UI_BUTTONS = {
 
 _SYMBOL_ALIASES = {
     "BTCUSDT": [
-        "btc", "bitcoin", "xbt", "биток", "биткоин", "биткойн", "биткоинa", "битка", "битку",
+        "btc", "bitcoin", "xbt",
+        "биток", "битка", "битку",
+        "биткоин", "биткоина", "биткоину",
+        "биткойн", "биткойна", "биткойну",
     ],
     "ETHUSDT": [
-        "eth", "ethereum", "ether", "эфир", "эфириум",
+        "eth", "ethereum", "ether",
+        "эфир", "эфира", "эфиру",
+        "эфириум", "эфириума",
     ],
     "SOLUSDT": [
-        "sol", "solana", "сол", "солана",
+        "sol", "solana",
+        "сол", "солана", "соланы", "солану",
     ],
     "BNBUSDT": [
         "bnb", "binance coin", "бинанс", "бинанс коин",
     ],
     "XRPUSDT": [
-        "xrp", "ripple", "рипл",
+        "xrp", "ripple", "рипл", "рипла",
     ],
     "ADAUSDT": [
         "ada", "cardano", "кардано",
@@ -73,6 +79,19 @@ _SYMBOL_ALIASES = {
     "SUIUSDT": [
         "sui", "суи",
     ],
+}
+
+_SYMBOL_STEMS = {
+    "BTCUSDT": ["битко", "биткой", "биток", "bitcoin", "btc", "xbt"],
+    "ETHUSDT": ["эфир", "эфири", "ethereum", "ether", "eth"],
+    "SOLUSDT": ["солан", "solana", "sol"],
+    "BNBUSDT": ["bnb", "бинанс"],
+    "XRPUSDT": ["xrp", "рипл", "ripple"],
+    "ADAUSDT": ["ada", "cardano", "кардан"],
+    "DOGEUSDT": ["doge", "dogecoin", "додж", "дог"],
+    "LINKUSDT": ["link", "chainlink", "чейнлинк"],
+    "AVAXUSDT": ["avax", "avalanche", "авакс", "аваланч"],
+    "SUIUSDT": ["sui", "суи"],
 }
 
 _AI_HINTS = [
@@ -140,7 +159,7 @@ def _extract_symbol_from_text(text: str) -> str | None:
     if re.fullmatch(r"[A-Z]{2,10}", raw):
         return raw + "USDT"
 
-    # 2) alias dictionary
+    # 2) exact alias dictionary
     padded = f" {t} "
     for symbol, aliases in _SYMBOL_ALIASES.items():
         for alias in aliases:
@@ -148,6 +167,13 @@ def _extract_symbol_from_text(text: str) -> str | None:
             if not a:
                 continue
             if re.search(rf"(^|[^a-zа-я0-9]){re.escape(a)}([^a-zа-я0-9]|$)", padded, flags=re.IGNORECASE):
+                return symbol
+
+    # 3) stem match for russian word forms / variants
+    for symbol, stems in _SYMBOL_STEMS.items():
+        for stem in stems:
+            st = stem.lower().strip()
+            if st and st in t:
                 return symbol
 
     return None
