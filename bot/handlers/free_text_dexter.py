@@ -21,6 +21,7 @@ def strip_ai_block(html: str) -> str:
 
 
 import time
+import logging
 from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.enums import ChatAction
@@ -29,6 +30,7 @@ from aiogram.exceptions import TelegramBadRequest
 from bot.clients.api import post
 
 router = Router()
+log = logging.getLogger(__name__)
 
 # UI buttons handled elsewhere — don't intercept
 _UI_BUTTONS = {
@@ -133,6 +135,7 @@ async def free_text_to_dexter(message: Message):
         plan_extra = "\n\n<i>⏱ plan {:.1f}s</i>".format(plan_dt)
         await safe_send_html(message, plan_html or "<i>Dexter unavailable</i>", plan_extra)
     except Exception:
+        log.exception("free_text_dexter: plan-first failed q=%r sym=%r", q_clean, sym)
         await message.answer("⚠️ Dexter: plan-first unavailable.")
         return
 
@@ -147,4 +150,5 @@ async def free_text_to_dexter(message: Message):
             ai_extra = "\n\n<i>⏱ ai {:.1f}s</i>".format(ai_dt)
             await safe_send_html(message, ai_html or "<i>AI empty</i>", ai_extra)
         except Exception:
+            log.exception("free_text_dexter: ai follow-up failed q=%r sym=%r", q_clean, sym)
             await message.answer("🤖 AI: OFF • timeout/error")

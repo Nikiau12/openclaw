@@ -1,31 +1,15 @@
-import os
-import aiohttp
-
-
-# Keep-alive session (reuse across requests)
-_SESSION: aiohttp.ClientSession | None = None
-
-def _timeout(timeout: int) -> aiohttp.ClientTimeout:
-    return aiohttp.ClientTimeout(total=timeout)
-
-async def _get_session(timeout: int) -> aiohttp.ClientSession:
-    global _SESSION
-    if _SESSION is not None and not _SESSION.closed:
-        return _SESSION
-    _SESSION = aiohttp.ClientSession(timeout=_timeout(timeout))
-    return _SESSION
-_SESSION: aiohttp.ClientSession | None = None
-
-async def _session(timeout: int) -> aiohttp.ClientSession:
-    global _SESSION
-    if _SESSION is not None and not _SESSION.closed:
-        return _SESSION
-    t = aiohttp.ClientTimeout(total=timeout)
-    _SESSION = aiohttp.ClientSession(timeout=t)
-    return _SESSION
+import json
+import asyncio
+import logging
 from typing import Any, Dict, Optional
 
+import aiohttp
+
 from bot.config import OPENCLAW_API_URL
+
+log = logging.getLogger(__name__)
+
+_SESSION: aiohttp.ClientSession | None = None
 
 
 class APIError(RuntimeError):
@@ -37,7 +21,6 @@ def _base_url() -> str:
     if not base:
         raise APIError("OPENCLAW_API_URL is empty")
 
-    # если забыли схему — добавим https://
     if not base.startswith("http://") and not base.startswith("https://"):
         base = "https://" + base
 
@@ -52,21 +35,68 @@ def _join(path: str) -> str:
     return base + p
 
 
+def _timeout(timeout: int) -> aiohttp.ClientTimeout:
+    return aiohttp.ClientTimeout(total=timeout)
+
+
+async def _session(timeout: int) -> aiohttp.ClientSession:
+    global _SESSION
+
+    # если сессия уже есть — используем её
+    if _SESSION is not None and not _SESSION.closed:
+        return _SESSION
+
+    connector = aiohttp.TCPConnector(ssl=False)
+    _SESSION = aiohttp.ClientSession(timeout=_timeout(timeout), connector=connector)
+    return _SESSION
+
+
+async def _read_json_or_text(r: aiohttp.ClientResponse) -> Dict[str, Any]:
+    raw = await r.text()
+    if not raw.strip():
+        return {}
+
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            return data
+        return {"raw": data}
+    except Exception:
+        return {"raw_text": raw[:2000]}
+
+
 async def get(path: str, params: Optional[Dict[str, Any]] = None, timeout: int = 30) -> Dict[str, Any]:
     url = _join(path)
     s = await _session(timeout)
-    async with s.get(url, params=params) as r:
-            data = await r.json(content_type=None)
+
+    try:
+        async with s.get(url, params=params) as r:
+            data = await _read_json_or_text(r)
             if r.status >= 400:
                 raise APIError(f"GET {url} -> {r.status}: {data}")
             return data
+    except asyncio.TimeoutError as e:
+        log.exception("API GET timeout url=%s timeout=%s params=%r", url, timeout, params)
+        raise APIError(f"GET timeout {url} ({timeout}s)") from e
+    except aiohttp.ClientError as e:
+        log.exception("API GET client error url=%s params=%r", url, params)
+        raise APIError(f"GET client error {url}: {e}") from e
 
 
 async def post(path: str, payload: Optional[Dict[str, Any]] = None, timeout: int = 30) -> Dict[str, Any]:
     url = _join(path)
+    body = payload or {}
     s = await _session(timeout)
-    async with s.post(url, json=(payload or {})) as r:
-            data = await r.json(content_type=None)
+
+    try:
+        async with s.post(url, json=body) as r:
+            data = await _read_json_or_text(r)
             if r.status >= 400:
                 raise APIError(f"POST {url} -> {r.status}: {data}")
             return data
+    except asyncio.TimeoutError as e:
+        log.exception("API POST timeout url=%s timeout=%s payload=%r", url, timeout, body)
+        raise APIError(f"POST timeout {url} ({timeout}s)") from e
+    except aiohttp.ClientError as e:
+        log.exception("API POST client error url=%s payload=%r", url, body)
+        raise APIError(f"POST client error {url}: {e}") from e
