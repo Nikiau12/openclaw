@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
+from openclaw_api.formatters.analyze_formatter import format_analyze_message
 from pydantic import BaseModel
 from typing import Optional
 import httpx
@@ -174,19 +175,55 @@ async def plan_v3(req: PlanRequest, mode: Optional[str] = None):
         if reasons:
             reasons_line = f"🧩 <b>Drivers</b>: {' | '.join(reasons)}\n"
 
-        msg = (
-            f"📌 <b>{req.symbol}</b> → <code>{sym}</code>\n"
-            f"{icon} <b>Bias</b>: {bias}\n"
-            f"{tf_line}"
-            f"{reasons_line}\n"
-            f"💰 <b>Last</b>: <code>{fmt_price(last)}</code>\n"
-            f"📈 <b>24h</b>: <code>{change_pct:+.2f}%</code>\n"
-            f"🌊 <b>QuoteVol</b>: <code>{quote_vol:,.0f}</code>\n"
-            f"⬆️ <b>High</b>: <code>{fmt_price(high_24h)}</code>\n"
-            f"⬇️ <b>Low</b>: <code>{fmt_price(low_24h)}</code>\n"
-        )
+        bias_map = {
+            "BULLISH": "Bullish",
+            "BEARISH": "Bearish",
+            "NEUTRAL": "Neutral",
+        }
 
-        # ===== classic (unchanged) =====
+        summary_parts = [
+            f"Last: {fmt_price(last)}",
+            f"24h: {change_pct:+.2f}%",
+        ]
+        if tf_line:
+            summary_parts.append(
+                tf_line.replace("📊 <b>TF</b>: ", "")
+                .replace("\n", "")
+                .replace("<code>", "")
+                .replace("</code>", "")
+            )
+        summary = " | ".join(summary_parts)
+
+        why_items = reasons[:] if reasons else []
+        if quote_vol:
+            why_items.append(f"24h quote volume: {quote_vol:,.0f}")
+
+        analyze_data = {
+            "symbol": sym,
+            "summary": summary,
+            "bias": bias_map.get(bias, bias.title()),
+            "why": why_items,
+            "key_levels": {
+                "support": fmt_price(low_24h),
+                "resistance": fmt_price(high_24h),
+                "breakout_trigger": "N/A",
+                "breakdown_trigger": "N/A",
+            },
+            "bullish_scenario": {
+                "entry_logic": "N/A",
+                "invalidation": "N/A",
+                "targets": "N/A",
+            },
+            "bearish_scenario": {
+                "entry_logic": "N/A",
+                "invalidation": "N/A",
+                "targets": "N/A",
+            },
+            "news_context": "News context is not yet connected in /plan_v3 classic mode.",
+            "risk_note": "Стоп обязателен.",
+        }
+
+        # ===== classic (formatter-backed) =====
         if mode != "structure":
             atr_ref = None
             for x in ok_tfs:
@@ -200,29 +237,45 @@ async def plan_v3(req: PlanRequest, mode: Optional[str] = None):
                 if bias == "BULLISH":
                     trigger = last + k_trig * atr_ref
                     invalid = last - k_inv * atr_ref
-                    msg += (
-                        f"\n🎯 <b>Trigger</b>: <code>{fmt_price(trigger)}</code>\n"
-                        f"🧯 <b>Invalidation</b>: <code>{fmt_price(invalid)}</code>\n"
-                    )
+
+                    analyze_data["key_levels"]["breakout_trigger"] = fmt_price(trigger)
+                    analyze_data["bullish_scenario"] = {
+                        "entry_logic": f"Break and hold above {fmt_price(trigger)}",
+                        "invalidation": fmt_price(invalid),
+                        "targets": "Open / not yet modeled",
+                    }
+
                 elif bias == "BEARISH":
                     trigger = last - k_trig * atr_ref
                     invalid = last + k_inv * atr_ref
-                    msg += (
-                        f"\n🎯 <b>Trigger</b>: <code>{fmt_price(trigger)}</code>\n"
-                        f"🧯 <b>Invalidation</b>: <code>{fmt_price(invalid)}</code>\n"
-                    )
+
+                    analyze_data["key_levels"]["breakdown_trigger"] = fmt_price(trigger)
+                    analyze_data["bearish_scenario"] = {
+                        "entry_logic": f"Break and hold below {fmt_price(trigger)}",
+                        "invalidation": fmt_price(invalid),
+                        "targets": "Open / not yet modeled",
+                    }
+
                 else:
                     lg_tr = last + k_trig * atr_ref
                     lg_iv = last - k_inv * atr_ref
                     sh_tr = last - k_trig * atr_ref
                     sh_iv = last + k_inv * atr_ref
-                    msg += (
-                        f"\n🧭 <b>Scenarios</b> (ATR-based)\n"
-                        f"🟩 <b>LONG</b>  trigger: <code>{fmt_price(lg_tr)}</code> | invalid: <code>{fmt_price(lg_iv)}</code>\n"
-                        f"🟥 <b>SHORT</b> trigger: <code>{fmt_price(sh_tr)}</code> | invalid: <code>{fmt_price(sh_iv)}</code>\n"
-                    )
 
-            msg += "\n🚨 <b>Риск-правило</b>: стоп обязателен.\n"
+                    analyze_data["key_levels"]["breakout_trigger"] = fmt_price(lg_tr)
+                    analyze_data["key_levels"]["breakdown_trigger"] = fmt_price(sh_tr)
+                    analyze_data["bullish_scenario"] = {
+                        "entry_logic": f"Break and hold above {fmt_price(lg_tr)}",
+                        "invalidation": fmt_price(lg_iv),
+                        "targets": "Open / not yet modeled",
+                    }
+                    analyze_data["bearish_scenario"] = {
+                        "entry_logic": f"Break and hold below {fmt_price(sh_tr)}",
+                        "invalidation": fmt_price(sh_iv),
+                        "targets": "Open / not yet modeled",
+                    }
+
+            msg = format_analyze_message(analyze_data)
             return {"ok": True, "message_html": msg, "payload": payload}
 
         # ===== structure mode (guarded) =====
