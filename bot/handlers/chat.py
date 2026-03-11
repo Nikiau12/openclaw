@@ -6,8 +6,11 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from bot.clients.api import get, post, APIError
+from bot.services.access import AccessService
+from bot.handlers.pro import LIMIT_REACHED_MESSAGE_RU, pro_keyboard
 
 router = Router()
+access_service = AccessService()
 
 # =========================
 # Dexter routing (no new command)
@@ -111,6 +114,12 @@ async def back_to_start(m: Message):
 
 @router.message(F.text.startswith("🧠 "))
 async def dexter_quick_pick(m: Message):
+    user_id = m.from_user.id
+    decision = access_service.check(user_id, "plan")
+    if not decision.allowed:
+        await m.answer(LIMIT_REACHED_MESSAGE_RU, parse_mode="HTML", reply_markup=pro_keyboard())
+        return
+
     raw = (m.text or "").replace("🧠", "").strip()
     symbol = _normalize_symbol(raw)
 
@@ -119,6 +128,7 @@ async def dexter_quick_pick(m: Message):
         dex = await post("/dexter/chat", {"query": symbol, "symbol": symbol, "analysis": True})
         if isinstance(dex, dict) and dex.get("ok") and dex.get("message_html"):
             await m.answer(dex["message_html"], parse_mode="HTML", disable_web_page_preview=True)
+            access_service.consume(user_id, "plan")
             return
     except APIError:
         pass
@@ -132,6 +142,7 @@ async def dexter_quick_pick(m: Message):
             data = await post("/plan/v3", {"symbol": symbol})
         msg = data.get("message_html") if isinstance(data, dict) else None
         await m.answer(msg or "⚠️ empty", parse_mode="HTML", disable_web_page_preview=True)
+        access_service.consume(user_id, "plan")
     except APIError as e:
         await m.answer(f"❌ APIError: {e}", parse_mode="HTML")
     except Exception as e:
@@ -140,6 +151,11 @@ async def dexter_quick_pick(m: Message):
 
 @router.message(Command("plan"))
 async def plan(m: Message):
+    user_id = m.from_user.id
+    decision = access_service.check(user_id, "plan")
+    if not decision.allowed:
+        await m.answer(LIMIT_REACHED_MESSAGE_RU, parse_mode="HTML", reply_markup=pro_keyboard())
+        return
     # /plan <symbol> [optional flags/text]
     symbol, tokens, tail = parse_plan_args(m.text or "")
 
@@ -174,6 +190,7 @@ async def plan(m: Message):
             dex = await post("/dexter/chat", {"query": symbol, "symbol": symbol, "analysis": False})
             if isinstance(dex, dict) and dex.get("ok") and dex.get("message_html"):
                 await m.answer(dex["message_html"], parse_mode="HTML", disable_web_page_preview=True)
+                access_service.consume(user_id, "plan")
                 return
         except APIError:
             pass
@@ -195,6 +212,11 @@ async def plan(m: Message):
 
 @router.message(Command("top"))
 async def top(m: Message):
+    user_id = m.from_user.id
+    decision = access_service.check(user_id, "top")
+    if not decision.allowed:
+        await m.answer(LIMIT_REACHED_MESSAGE_RU, parse_mode="HTML", reply_markup=pro_keyboard())
+        return
     # /top 10
     try:
         parts = (m.text or "").split()
@@ -231,6 +253,7 @@ async def top(m: Message):
             )
 
         await m.answer("\n".join(lines), parse_mode="HTML")
+        access_service.consume(user_id, "top")
 
     except APIError as e:
         await m.answer(f"❌ APIError: {e}", parse_mode="HTML")
@@ -240,6 +263,11 @@ async def top(m: Message):
 
 @router.message(Command("scan"))
 async def scan(m: Message):
+    user_id = m.from_user.id
+    decision = access_service.check(user_id, "scan")
+    if not decision.allowed:
+        await m.answer(LIMIT_REACHED_MESSAGE_RU, parse_mode="HTML", reply_markup=pro_keyboard())
+        return
     # /scan [tf] [mult] [limit]
     # examples:
     #   /scan
@@ -287,12 +315,14 @@ async def scan(m: Message):
         data = await post("/market/scan", payload)
         if isinstance(data, dict) and data.get("message_html"):
             await m.answer(data["message_html"], parse_mode="HTML", disable_web_page_preview=True)
+            access_service.consume(user_id, "scan")
             return
 
         items = data.get("items", []) if isinstance(data, dict) else []
 
         if not items:
             await m.answer(f"⚠️ Ничего не нашёл (tf={tf}, spike>={mult}).", parse_mode="HTML")
+            access_service.consume(user_id, "scan")
             return
 
         # --- trend filter: fetch bias for top N ---
