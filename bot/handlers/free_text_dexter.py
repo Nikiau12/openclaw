@@ -253,7 +253,7 @@ async def free_text_to_dexter(message: Message):
         await safe_send_html(message, plan_html or "<i>Dexter unavailable</i>", plan_extra)
     except Exception:
         log.exception("free_text_dexter: plan-first failed q=%r sym=%r", q_clean, sym)
-        await message.answer("⚠️ Dexter: plan-first unavailable.")
+        await message.answer("⚠️ FTD_V2: plan-first unavailable.")
         return
 
     # 2) AI вторым сообщением, только если want_ai
