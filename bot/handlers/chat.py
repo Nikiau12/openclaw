@@ -57,13 +57,28 @@ def should_use_dexter(tokens: List[str], tail: str) -> bool:
 def _sanitize_dexter_html(html: str | None) -> str | None:
     if not html:
         return html
+
+    out = html
+
+    # exact labels
     bad = [
         "📌 OpenClaw structure plan",
         "OpenClaw structure plan",
     ]
-    out = html
     for s in bad:
         out = out.replace(s, "")
+
+    # strip news / tldr / ai status lines
+    patterns = [
+        r'(?im)^.*🗞️\s*News \(last 168h\).*$',
+        r'(?im)^.*TL;DR:.*$',
+        r'(?im)^.*🤖\s*AI:\s*(ON|OFF).*$', 
+    ]
+    for p in patterns:
+        out = re.sub(p, "", out)
+
+    # collapse extra blank lines
+    out = re.sub(r'\n{3,}', '\n\n', out).strip()
     return out
 
 

@@ -17,8 +17,18 @@ def strip_ai_block(html: str) -> str:
     html2 = re.sub(r"<h4>Согласование</h4>.*?(?=<h4>|<b>🗂 Sources</b>)", "", html2, flags=re.S)
     html2 = re.sub(r"<h4>Сценарии</h4>.*?(?=<div><b>Уверенность:|<b>🗂 Sources</b>)", "", html2, flags=re.S)
     html2 = re.sub(r"<div><b>Уверенность:.*?</div>", "", html2, flags=re.S)
+
+    # strip dexter meta/header lines
+    html2 = re.sub(r".*🗞️\s*News \(last 168h\).*", "", html2, flags=re.I)
+    html2 = re.sub(r".*TL;DR:.*", "", html2, flags=re.I)
+    html2 = re.sub(r".*🤖\s*AI:\s*(ON|OFF).*", "", html2, flags=re.I)
+
+    # strip branding label
     html2 = re.sub(r".*OpenClaw structure plan.*", "", html2, flags=re.I)
     html2 = re.sub(r".*📌\s*OpenClaw structure plan.*", "", html2, flags=re.I)
+
+    # collapse blank lines
+    html2 = re.sub(r"\n{3,}", "\n\n", html2)
     return html2
 
 
