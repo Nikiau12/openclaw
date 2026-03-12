@@ -69,19 +69,15 @@ async def start(m: Message):
         input_field_placeholder="Выбери команду или напиши текст…",
     )
 
-    hello = "Привет 👋 Я <b>OpenClaw</b>. Помогаю быстро читать рынок и находить активность."
-    quick = (
-        "<b>Быстрый старт</b>\n"
-        "1) <code>/scan</code> → где сейчас всплеск объёма\n"
-        "2) <code>/plan TICKER</code> → Bias 1H/4H/1D + сценарии\n"
-        "3) <code>/top</code> → топ ликвидных монет\n\n"
-        "Нужны детали — нажми <b>📘 Guide / Полный гайд</b>.\n"
-        "Dexter research: нажми <b>🧠 Dexter Research</b> или напиши <code>/plan BTC_USDT explain</code>.\n"
-        "Кнопки можно убрать: <b>❌ Скрыть кнопки</b>."
-    )
+    hello = """Привет 👋
 
-    await m.answer(hello, parse_mode="HTML")
-    await m.answer(quick, parse_mode="HTML", reply_markup=kb)
+Я <b>MarketAnalyst</b>.
+
+Здесь можно быстро посмотреть, где в рынке есть движение, какие монеты сейчас активны и какой по ним сценарий.
+
+Для этого используй кнопки ниже или просто напиши вопрос своими словами."""
+
+    await m.answer(hello, parse_mode="HTML", reply_markup=kb)
 
 
 @router.message(F.text == "🧠 Dexter Research")
