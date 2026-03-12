@@ -500,10 +500,10 @@ async def plan_custom_hint(m: Message):
     await m.answer(msg, parse_mode="HTML")
 
 
-@router.message(F.text.startswith("/"))
+@router.message(F.text & ~F.text.startswith("/"))
 async def any_text(m: Message):
     txt = (m.text or "").strip()
-    if not txt or txt.startswith("/"):
+    if not txt:
         return
     try:
         data = await post("/chat", {"text": txt, "user_id": m.from_user.id})
