@@ -66,23 +66,25 @@ async def start(m: Message):
         ],
         resize_keyboard=True,
         one_time_keyboard=False,
-        input_field_placeholder="Выбери команду или напиши текст…",
+        input_field_placeholder="Выбери команду или напиши вопрос…",
     )
 
-    hello = "Привет 👋 Я <b>OpenClaw</b>. Помогаю быстро читать рынок и находить активность."
-    quick = (
-        "<b>Быстрый старт</b>\n"
-        "1) <code>/scan</code> → где сейчас всплеск объёма\n"
-        "2) <code>/plan TICKER</code> → Bias 1H/4H/1D + сценарии\n"
-        "3) <code>/top</code> → топ ликвидных монет\n\n"
-        "Нужны детали — нажми <b>📘 Полный гайд</b>.\n"
-        "Dexter research: нажми <b>🧠 Dexter Research</b> или напиши <code>/plan BTC_USDT explain</code>.\n"
-        "Кнопки можно убрать: <b>❌ Скрыть кнопки</b>."
-    )
+    hello = """Привет 👋
+
+Я <b>MarketAnalyst</b> — бот для быстрого чтения крипторынка."""
+
+    quick = """<b>Что я умею</b>
+• <code>/top</code> — топ ликвидных монет
+• <code>/scan</code> — поиск активных монет
+• <code>/plan BTC_USDT</code> — структура, уровни и сценарий
+• обычный текст — например: <code>что думаешь по битку</code>
+
+Нужны детали — нажми <b>📘 Полный гайд</b>.
+Примеры запросов — в <b>🧪 Примеры</b>.
+Кнопки можно убрать через <b>❌ Скрыть кнопки</b>."""
 
     await m.answer(hello, parse_mode="HTML")
     await m.answer(quick, parse_mode="HTML", reply_markup=kb)
-
 
 @router.message(F.text == "🧠 Dexter Research")
 async def dexter_menu(m: Message):
@@ -385,13 +387,42 @@ async def scan(m: Message):
 
 @router.message(F.text == "📘 Полный гайд")
 async def full_guide(m: Message):
-    guide = (
-        "<b>📘 OpenClaw — полный гайд для новичков</b>\n"
-        "<i>Это аналитика, не торговый совет. Решение и риск — на тебе.</i>\n\n"
-        # (оставь твой большой guide тут без изменений)
-    )
-    await m.answer(guide, parse_mode="HTML")
+    guide = """<b>📘 Полный гайд / Full guide</b>
 
+<b>RU</b>
+<b>1. /top</b> — показывает самые ликвидные монеты по объёму.
+Это быстрый способ понять, где рынок сейчас живой.
+
+<b>2. /scan</b> — помогает находить активные монеты на нескольких таймфреймах.
+Обычно логика такая: сначала смотришь scan, потом открываешь <code>/plan</code>.
+
+<b>3. /plan TICKER</b> — показывает структуру, bias, уровни и сценарий.
+Пример: <code>/plan BTC_USDT</code>
+
+<b>4. Свободный текст</b> — можно писать обычным языком.
+Например: <code>что думаешь по битку</code> или <code>стоит ли шортить solana</code>.
+
+<b>5. Dexter Research</b> — если нужен более подробный разбор.
+
+<i>Важно: бот даёт аналитику, а не финансовый совет.</i>
+
+<b>EN</b>
+<b>1. /top</b> — shows the most liquid coins by volume.
+This is the fastest way to see where the market is active.
+
+<b>2. /scan</b> — helps you find active coins across multiple timeframes.
+A common flow is: check scan first, then open <code>/plan</code>.
+
+<b>3. /plan TICKER</b> — shows structure, bias, levels and scenario.
+Example: <code>/plan ETH_USDT</code>
+
+<b>4. Free text</b> — you can just type naturally.
+For example: <code>what do you think about bitcoin</code>.
+
+<b>5. Dexter Research</b> — use it when you want a deeper read.
+
+<i>Important: this bot provides analysis, not financial advice.</i>"""
+    await m.answer(guide, parse_mode="HTML")
 
 @router.message(F.text == "❌ Скрыть кнопки")
 async def hide_buttons(m: Message):
@@ -400,25 +431,43 @@ async def hide_buttons(m: Message):
 
 @router.message(F.text == "🧪 Примеры")
 async def examples(m: Message):
-    msg = (
-        "<b>Примеры команд</b>\n\n"
-        "• Найти активность по объёму:\n"
-        "<code>/scan</code>\n"
-        "<code>/scan 1h 3 20</code>\n\n"
-        "• Получить план по монете:\n"
-        "<code>/plan BTC_USDT</code>\n"
-        "<code>/plan ETH_USDT</code>\n"
-        "<code>/plan SOL_USDT</code>\n\n"
-        "• Dexter research (без новой команды):\n"
-        "<code>/plan BTC_USDT explain</code>\n"
-        "<code>/plan BTC_USDT почему</code>\n\n"
-        "• Топ ликвидных монет:\n"
-        "<code>/top</code>\n"
-        "<code>/top 20</code>\n\n"
-        "Совет: <code>/scan</code> → выбрал тикер → <code>/plan</code>."
-    )
-    await m.answer(msg, parse_mode="HTML")
+    msg = """<b>🧪 Примеры / Examples</b>
 
+<b>RU</b>
+• Найти активные монеты:
+<code>/scan</code>
+
+• Посмотреть топ ликвидных монет:
+<code>/top</code>
+<code>/top 20</code>
+
+• Получить план по монете:
+<code>/plan BTC_USDT</code>
+<code>/plan ETH_USDT</code>
+<code>/plan SOL_USDT</code>
+
+• Написать вопрос своими словами:
+<code>что думаешь по битку</code>
+<code>стоит ли шортить солану</code>
+
+<b>EN</b>
+• Find active coins:
+<code>/scan</code>
+
+• See top liquid coins:
+<code>/top</code>
+<code>/top 20</code>
+
+• Get a plan for a coin:
+<code>/plan BTC_USDT</code>
+<code>/plan ETH_USDT</code>
+
+• Ask in plain English:
+<code>what do you think about bitcoin</code>
+<code>should I short solana</code>
+
+Совет / Tip: <code>/scan</code> → выбрать монету → <code>/plan</code>."""
+    await m.answer(msg, parse_mode="HTML")
 
 @router.message(F.text == "✍️ Своя монета")
 async def plan_custom_hint(m: Message):
