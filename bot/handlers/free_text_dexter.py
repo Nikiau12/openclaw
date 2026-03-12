@@ -28,9 +28,12 @@ from aiogram.enums import ChatAction
 from aiogram.exceptions import TelegramBadRequest
 
 from bot.clients.api import post
+from bot.services.access import AccessService
+from bot.handlers.pro import LIMIT_REACHED_MESSAGE_RU, pro_keyboard
 
 router = Router()
 log = logging.getLogger(__name__)
+access_service = AccessService()
 
 # UI buttons handled elsewhere — don't intercept
 _UI_BUTTONS = {
@@ -223,6 +226,12 @@ async def free_text_to_dexter(message: Message):
     if not _should_handle(txt):
         return
 
+    user_id = message.from_user.id
+    decision = access_service.check(user_id, "analytics")
+    if not decision.allowed:
+        await message.answer(LIMIT_REACHED_MESSAGE_RU, parse_mode="HTML", reply_markup=pro_keyboard(user_id))
+        return
+
     q = _normalize_query(txt)
     if not q:
         return
@@ -251,6 +260,7 @@ async def free_text_to_dexter(message: Message):
         plan_html = strip_ai_block(plan_html) if plan_html else plan_html
         plan_extra = "\n\n<i>⏱ plan {:.1f}s</i>".format(plan_dt)
         await safe_send_html(message, plan_html or "<i>Dexter unavailable</i>", plan_extra)
+        access_service.consume(user_id, "analytics")
     except Exception:
         log.exception("free_text_dexter: plan-first failed q=%r sym=%r", q_clean, sym)
         await message.answer("⚠️ Dexter временно недоступен. Попробуй ещё раз через минуту.")

@@ -10,11 +10,8 @@ from bot.storage.access_store import JsonAccessStore
 
 UTC = timezone.utc
 
-FREE_LIMITS: Dict[str, int] = {
-    "plan": 2,
-    "scan": 2,
-    "top": 1,
-}
+FREE_TOTAL_LIMIT = 3
+ANALYTICS_KEY = "analytics_total"
 
 
 @dataclass
@@ -53,7 +50,7 @@ class AccessService:
         today = self._now().date().isoformat()
         if user.get("usage_period_start") != today:
             user["usage_period_start"] = today
-            user["usage"] = {"plan": 0, "scan": 0, "top": 0}
+            user["usage"] = {ANALYTICS_KEY: 0}
         return user
 
     def get_user_state(self, user_id: int) -> dict:
@@ -81,8 +78,8 @@ class AccessService:
                 reason="pro",
             )
 
-        limit = int(FREE_LIMITS.get(feature, 0))
-        used = int(user.get("usage", {}).get(feature, 0))
+        limit = FREE_TOTAL_LIMIT
+        used = int(user.get("usage", {}).get(ANALYTICS_KEY, 0))
         remaining = max(0, limit - used)
 
         if used >= limit:
@@ -107,7 +104,7 @@ class AccessService:
         if self._is_pro_active(user):
             return
         usage = user.setdefault("usage", {})
-        usage[feature] = int(usage.get(feature, 0)) + 1
+        usage[ANALYTICS_KEY] = int(usage.get(ANALYTICS_KEY, 0)) + 1
         self.store.save_user(user_id, user)
 
     def activate_pro(self, user_id: int, days: int = 30) -> None:

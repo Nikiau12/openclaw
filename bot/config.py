@@ -4,6 +4,7 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 OPENCLAW_API_URL = os.getenv("OPENCLAW_API_URL", "").strip().rstrip("/")
 
 TRC20_ADDRESS = os.getenv("TRC20_ADDRESS", "YOUR_TRC20_ADDRESS").strip()
+SECOND_BOT_USERNAME = os.getenv("SECOND_BOT_USERNAME", "").strip().lstrip("@")
 ACCESS_STATE_PATH = os.getenv("ACCESS_STATE_PATH", "data/access_state.json").strip()
 
 ADMIN_USER_IDS = {

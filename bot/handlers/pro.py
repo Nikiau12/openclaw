@@ -4,30 +4,40 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
-from bot.config import ADMIN_USER_IDS, TRC20_ADDRESS
+from bot.config import ADMIN_USER_IDS, TRC20_ADDRESS, SECOND_BOT_USERNAME
 from bot.services.access import AccessService
 
 router = Router()
 access_service = AccessService()
 
 
-def pro_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="Открыть Pro", callback_data="open_pro")],
-            [InlineKeyboardButton(text="Я оплатил", callback_data="paid_pro")],
-        ]
-    )
+def pro_keyboard(user_id: int | None = None) -> InlineKeyboardMarkup:
+    rows = [[InlineKeyboardButton(text="Открыть Pro", callback_data="open_pro")]]
+
+    if user_id and SECOND_BOT_USERNAME:
+        rows.append([
+            InlineKeyboardButton(
+                text="Отправить hash",
+                url=f"https://t.me/{SECOND_BOT_USERNAME}?start=pay_{user_id}",
+            )
+        ])
+    else:
+        rows.append([InlineKeyboardButton(text="Я оплатил", callback_data="paid_pro")])
+
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def payment_message() -> str:
     return (
-        "Открыть доступ к MarketAnalyst Pro\n\n"
-        "Стоимость: 29 USDT / месяц\n"
-        "Сеть: TRC20\n"
-        f"Адрес: {TRC20_ADDRESS}\n\n"
-        "После оплаты отправь в этот чат свой TX hash.\n\n"
-        "Доступ будет активирован после подтверждения оплаты."
+        "<b>MarketAnalyst Pro</b>\n\n"
+        "Стоимость: <b>29 USDT / month</b>\n"
+        "Сеть: <b>TRC20</b>\n"
+        f"Адрес: <code>{TRC20_ADDRESS}</code>\n\n"
+        "После оплаты:\n"
+        "1. Отправь ровно <b>29 USDT</b> в сети <b>TRC20</b>\n"
+        "2. Нажми кнопку <b>Отправить hash</b>\n"
+        "3. Во втором боте отправь TX hash\n\n"
+        "После проверки оплата будет подтверждена, и доступ активируется."
     )
 
 
@@ -39,25 +49,25 @@ LIMIT_REACHED_MESSAGE_RU = (
 
 @router.message(Command("pro"))
 async def pro_command(message: Message) -> None:
-    await message.answer(payment_message(), reply_markup=pro_keyboard())
+    await message.answer(payment_message(), reply_markup=pro_keyboard(message.from_user.id))
 
 
 @router.message(F.text.func(lambda s: isinstance(s, str) and s.strip().upper() == "PRO"))
 async def pro_text(message: Message) -> None:
-    await message.answer(payment_message(), reply_markup=pro_keyboard())
+    await message.answer(payment_message(), reply_markup=pro_keyboard(message.from_user.id))
 
 
 @router.callback_query(F.data == "open_pro")
 async def pro_open_callback(callback: CallbackQuery) -> None:
     if callback.message:
-        await callback.message.answer(payment_message(), reply_markup=pro_keyboard())
+        await callback.message.answer(payment_message(), reply_markup=pro_keyboard(callback.from_user.id))
     await callback.answer()
 
 
 @router.callback_query(F.data == "paid_pro")
 async def pro_paid_callback(callback: CallbackQuery) -> None:
     if callback.message:
-        await callback.message.answer("Отправь в этот чат свой TX hash.")
+        await callback.message.answer("Нажми кнопку «Отправить hash» и перейди во второй бот.")
     await callback.answer()
 
 
