@@ -270,120 +270,100 @@ async def scan(m: Message):
     if not decision.allowed:
         await m.answer(LIMIT_REACHED_MESSAGE_RU, parse_mode="HTML", reply_markup=pro_keyboard())
         return
-    # /scan [tf] [mult] [limit]
-    # examples:
-    #   /scan
-    #   /scan 1h 3.0
-    #   /scan 15m 2.5 20
+
     try:
         parts = (m.text or "").split()
-
-        tf = "5m"
-        mult = 1.5
         limit = 10
-
         if len(parts) > 1:
-            tf = parts[1].strip()
-        if len(parts) > 2:
             try:
-                mult = float(parts[2])
-            except Exception:
-                mult = 1.5
-        if len(parts) > 3:
-            try:
-                limit = int(parts[3])
+                limit = int(parts[1])
             except Exception:
                 limit = 10
 
         if limit < 1:
             limit = 1
-        if limit > 30:
-            limit = 30
+        if limit > 15:
+            limit = 15
 
-        payload = {
-            "quote": "USDT",
-            "limit": limit,
-            "candidate_pool": 80,
-            "min_quote_volume_24h": 5_000_000,
-            "max_abs_change_24h": 40,
-            "volume_spike": {
-                "tf": tf,
-                "lookback": 20,
-                "multiplier": mult,
-                "limit": 80
+        async def fetch_scan(tf: str, mult: float):
+            payload = {
+                "quote": "USDT",
+                "limit": limit,
+                "candidate_pool": 80,
+                "min_quote_volume_24h": 5_000_000,
+                "max_abs_change_24h": 40,
+                "volume_spike": {
+                    "tf": tf,
+                    "lookback": 20,
+                    "multiplier": mult,
+                    "limit": 80,
+                },
             }
-        }
+            return await post("/market/scan", payload)
 
-        data = await post("/market/scan", payload)
-        if isinstance(data, dict) and data.get("message_html"):
-            await m.answer(data["message_html"], parse_mode="HTML", disable_web_page_preview=True)
-            access_service.consume(user_id, "scan")
-            return
+        scan_15m, scan_1h, scan_4h = await asyncio.gather(
+            fetch_scan("15m", 2.0),
+            fetch_scan("1h", 2.0),
+            fetch_scan("4h", 1.8),
+        )
 
-        items = data.get("items", []) if isinstance(data, dict) else []
+        buckets = [
+            ("15m", scan_15m.get("items", []) if isinstance(scan_15m, dict) else []),
+            ("1h", scan_1h.get("items", []) if isinstance(scan_1h, dict) else []),
+            ("4h", scan_4h.get("items", []) if isinstance(scan_4h, dict) else []),
+        ]
 
-        if not items:
-            await m.answer(f"⚠️ Ничего не нашёл (tf={tf}, spike>={mult}).", parse_mode="HTML")
-            access_service.consume(user_id, "scan")
-            return
+        lines = [
+            "🔎 <b>Scan USDT</b>",
+            "Активные монеты на <code>15m / 1h / 4h</code>",
+            "",
+        ]
 
-        # --- trend filter: fetch bias for top N ---
-        top_n = min(5, len(items))
-        symbols = [items[i].get("symbol", "") for i in range(top_n)]
-        symbols = [s for s in symbols if s]
+        total_found = 0
 
-        async def fetch_bias(sym: str):
-            try:
-                b = await post("/signals/bias/v1", {"symbol": sym, "timeframes": ["1h", "4h", "1d"]})
-                if not isinstance(b, dict):
-                    return (sym, None, None, None)
-                return (
-                    sym,
-                    b.get("bias"),
-                    b.get("score_total"),
-                    b.get("weight_total"),
+        for tf, items in buckets:
+            lines.append(f"<b>{tf}</b>")
+
+            if not items:
+                lines.append("• <i>ничего сильного сейчас нет</i>")
+                lines.append("")
+                continue
+
+            shown = items[:limit]
+            total_found += len(shown)
+
+            for i, it in enumerate(shown, start=1):
+                sym = it.get("symbol", "?")
+                ch = float(it.get("change_pct_24h") or 0.0)
+                qv = float(it.get("quote_volume_24h") or 0.0)
+                last = float(it.get("last") or 0.0)
+                spike = float(it.get("volume_spike") or 0.0)
+
+                icon = "🟩" if ch > 0 else "🟥" if ch < 0 else "🟦"
+                lines.append(
+                    f"{i}. <code>{sym}</code> {icon} <code>{ch:+.2f}%</code>  "
+                    f"<code>{last:g}</code>  spike <code>{spike:.2f}×</code>  vol <code>{qv:,.0f}</code>"
                 )
-            except Exception:
-                return (sym, None, None, None)
 
-        bias_results = await asyncio.gather(*[fetch_bias(s) for s in symbols])
-        bias_map = {sym: (bias, st, wt) for sym, bias, st, wt in bias_results}
+            lines.append("")
 
-        def bias_icon(b: str | None) -> str:
-            return {"BULLISH": "🟩", "BEARISH": "🟥", "NEUTRAL": "🟦"}.get((b or "").upper(), "⚪️")
-
-        lines = [f"🔎 <b>Scan</b> tf=<code>{tf}</code> spike≥<code>{mult:g}</code> (top {limit})"]
-        lines.append(f"🧭 Trend filter: bias 1H/4H/1D for top {top_n}")
-
-        for i, it in enumerate(items, start=1):
-            sym = it.get("symbol", "?")
-            sp = float(it.get("volume_spike") or 0.0)
-            ch = float(it.get("change_pct_24h") or 0.0)
-            qv = float(it.get("quote_volume_24h") or 0.0)
-            last = float(it.get("last") or 0.0)
-
-            icon = "🟩" if ch > 0 else "🟥" if ch < 0 else "🟦"
-
-            b, st, wt = bias_map.get(sym, (None, None, None))
-            btxt = ""
-            if b:
-                try:
-                    btxt = f"  {bias_icon(b)} <code>{b}</code> <code>{int(st)}/{int(wt)}</code>"
-                except Exception:
-                    btxt = f"  {bias_icon(b)} <code>{b}</code>"
-
-            lines.append(
-                f"{i}. <code>{sym}</code>  spike <code>{sp:.2f}×</code>{btxt}\n"
-                f"    {icon} <code>{ch:+.2f}%</code>  <code>{last:g}</code>  vol <code>{qv:,.0f}</code>"
+        if total_found == 0:
+            await m.answer(
+                "⚠️ Сейчас scan ничего сильного не нашёл на 15m / 1h / 4h.",
+                parse_mode="HTML",
             )
+            access_service.consume(user_id, "scan")
+            return
 
-        await m.answer("\n".join(lines), parse_mode="HTML")
+        lines.append("Дальше: выбери монету и напиши <code>/plan TICKER</code>.")
+        await m.answer("
+".join(lines).strip(), parse_mode="HTML")
+        access_service.consume(user_id, "scan")
 
     except APIError as e:
         await m.answer(f"❌ APIError: {e}", parse_mode="HTML")
     except Exception as e:
         await m.answer(f"❌ Error: {type(e).__name__}: {e}", parse_mode="HTML")
-
 
 @router.message(F.text == "📘 Полный гайд")
 async def full_guide(m: Message):
