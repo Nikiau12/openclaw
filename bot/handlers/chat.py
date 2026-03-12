@@ -75,7 +75,17 @@ async def start(m: Message):
 
 Здесь можно быстро посмотреть, где в рынке есть движение, какие монеты сейчас активны и какой по ним сценарий.
 
-Для этого используй кнопки ниже или просто напиши вопрос своими словами."""
+Для этого используй кнопки ниже или просто напиши вопрос своими словами.
+
+———
+
+Hello 👋
+
+I’m <b>MarketAnalyst</b>.
+
+Here you can quickly see where the market is moving, which coins are active right now, and what the current setup looks like.
+
+Use the buttons below or just type your question in plain English."""
 
     await m.answer(hello, parse_mode="HTML", reply_markup=kb)
 
