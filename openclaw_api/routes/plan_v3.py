@@ -305,6 +305,13 @@ async def plan_v3(req: PlanRequest, mode: Optional[str] = None):
             },
         }
 
+        msg = (
+            f"📌 <b>{sym}</b>\n"
+            f"🧭 <b>Bias</b>: <code>{bias}</code> <code>{int(score_total)}/{int(weight_total)}</code>\n"
+            f"💰 <b>Last</b>: <code>{fmt_price(last)}</code>\n"
+            f"📊 <b>24h</b>: high <code>{fmt_price(high_24h)}</code> | low <code>{fmt_price(low_24h)}</code>\n\n"
+        )
+
         try:
             async with httpx.AsyncClient(timeout=12.0) as client:
                 r4 = await client.get(
