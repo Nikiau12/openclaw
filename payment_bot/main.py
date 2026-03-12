@@ -37,14 +37,23 @@ async def start(message: Message) -> None:
             "Привет.\n\n"
             "Этот бот принимает TX hash для оплаты подписки.\n\n"
             "Пришли hash одним сообщением.\n"
-            "После этого заявка уйдёт на проверку."
+            "После этого заявка уйдёт на проверку.\n\n"
+            "———\n\n"
+            "Hello.\n\n"
+            "This bot accepts a TX hash for subscription payment.\n\n"
+            "Send the hash in one message.\n"
+            "After that, your request will be sent for review."
         )
         return
 
     await message.answer(
         "Привет.\n\n"
         "Этот бот нужен только для отправки TX hash после оплаты подписки.\n\n"
-        "Открой его по кнопке из основного бота."
+        "Открой его по кнопке из основного бота.\n\n"
+        "———\n\n"
+        "Hello.\n\n"
+        "This bot is only for sending a TX hash after subscription payment.\n\n"
+        "Open it using the button from the main bot."
     )
 
 
@@ -58,16 +67,27 @@ async def receive_hash(message: Message) -> None:
     if source_user_id is None:
         await message.answer(
             "Сначала открой этого бота по кнопке из основного бота, "
-            "чтобы я понял, кому привязать оплату."
+            "чтобы я понял, кому привязать оплату.\n\n"
+            "———\n\n"
+            "First open this bot using the button from the main bot, "
+            "so I know which account the payment should be linked to."
         )
         return
 
     if not _looks_like_tx_hash(txt):
-        await message.answer("Это не похоже на TX hash. Отправь hash одной строкой.")
+        await message.answer(
+            "Это не похоже на TX hash. Отправь hash одной строкой.\n\n"
+            "———\n\n"
+            "This does not look like a TX hash. Send the hash in a single line."
+        )
         return
 
     if store.tx_hash_exists(txt):
-        await message.answer("Этот TX hash уже был отправлен ранее.")
+        await message.answer(
+            "Этот TX hash уже был отправлен ранее.\n\n"
+            "———\n\n"
+            "This TX hash has already been submitted before."
+        )
         return
 
     payload = {
@@ -83,7 +103,10 @@ async def receive_hash(message: Message) -> None:
 
     await message.answer(
         "Hash получен.\n\n"
-        "Заявка отправлена на проверку. После подтверждения оплаты доступ будет активирован."
+        "Заявка отправлена на проверку. После подтверждения оплаты доступ будет активирован.\n\n"
+        "———\n\n"
+        "Hash received.\n\n"
+        "Your request has been sent for review. After the payment is confirmed, access will be activated."
     )
 
     if PAYMENT_ADMIN_ID:
