@@ -4,8 +4,8 @@ import re
 
 def strip_ai_block(html: str) -> str:
     """
-    Убирает AI-аналитику (Key points / Interpretation / Alignment / Scenarios / Confidence),
-    но оставляет News + Sources + OpenClaw plan.
+    Убирает AI-аналитику (Key points / Interpretation / Alignment / Scenarios / Confidence)
+    и скрывает служебную подпись structure plan.
     """
     if not html:
         return html
@@ -17,6 +17,8 @@ def strip_ai_block(html: str) -> str:
     html2 = re.sub(r"<h4>Согласование</h4>.*?(?=<h4>|<b>🗂 Sources</b>)", "", html2, flags=re.S)
     html2 = re.sub(r"<h4>Сценарии</h4>.*?(?=<div><b>Уверенность:|<b>🗂 Sources</b>)", "", html2, flags=re.S)
     html2 = re.sub(r"<div><b>Уверенность:.*?</div>", "", html2, flags=re.S)
+    html2 = re.sub(r".*OpenClaw structure plan.*", "", html2, flags=re.I)
+    html2 = re.sub(r".*📌\s*OpenClaw structure plan.*", "", html2, flags=re.I)
     return html2
 
 

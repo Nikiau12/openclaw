@@ -54,6 +54,19 @@ def should_use_dexter(tokens: List[str], tail: str) -> bool:
     return any(k in low_tail for k in DEXTER_KEYWORDS)
 
 
+def _sanitize_dexter_html(html: str | None) -> str | None:
+    if not html:
+        return html
+    bad = [
+        "📌 OpenClaw structure plan",
+        "OpenClaw structure plan",
+    ]
+    out = html
+    for s in bad:
+        out = out.replace(s, "")
+    return out
+
+
 @router.message(Command("start"))
 async def start(m: Message):
     kb = ReplyKeyboardMarkup(
@@ -195,7 +208,7 @@ async def plan(m: Message):
         try:
             dex = await post("/dexter/chat", {"query": symbol, "symbol": symbol, "analysis": False})
             if isinstance(dex, dict) and dex.get("ok") and dex.get("message_html"):
-                await m.answer(dex["message_html"], parse_mode="HTML", disable_web_page_preview=True)
+                await m.answer(_sanitize_dexter_html(dex["message_html"]), parse_mode="HTML", disable_web_page_preview=True)
                 access_service.consume(user_id, "plan")
                 return
         except APIError:
