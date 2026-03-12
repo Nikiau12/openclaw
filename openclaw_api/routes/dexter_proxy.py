@@ -101,15 +101,44 @@ async def dexter_run(req: DexterRunRequest, analysis: Optional[str] = Query(defa
 async def dexter_chat(req: dict):
     """
     Proxy to Service C /chat (free-form trading chat).
+    Falls back to OpenClaw plan when Service C fails.
     """
     base = (os.getenv("DEXTER_AGENT_URL") or "").rstrip("/")
     if not base:
         raise HTTPException(status_code=503, detail="DEXTER_AGENT_URL is not set")
+
+    query = str((req or {}).get("query") or "").strip()
+    symbol = str((req or {}).get("symbol") or "").strip()
+    guessed = guess_symbol(symbol or query or "BTC_USDT")
 
     try:
         async with httpx.AsyncClient(timeout=50.0) as client:
             r = await client.post(f"{base}/chat", json=req)
             r.raise_for_status()
             return r.json()
-    except httpx.HTTPError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+    except httpx.HTTPStatusError as e:
+        plan = await plan_v3(PlanRequest(symbol=guessed, mode="structure"))
+        msg = (plan.get("message_html") if isinstance(plan, dict) else None) or "<i>Plan unavailable</i>"
+        return {
+            "ok": True,
+            "message_html": msg,
+            "raw": {
+                "mode": "fallback_plan_only",
+                "error": f"dexter_http_{e.response.status_code}",
+                "symbol": guessed,
+                "plan": plan,
+            },
+        }
+    except Exception as e:
+        plan = await plan_v3(PlanRequest(symbol=guessed, mode="structure"))
+        msg = (plan.get("message_html") if isinstance(plan, dict) else None) or "<i>Plan unavailable</i>"
+        return {
+            "ok": True,
+            "message_html": msg,
+            "raw": {
+                "mode": "fallback_plan_only",
+                "error": f"dexter_error:{e.__class__.__name__}:{str(e) or repr(e)}",
+                "symbol": guessed,
+                "plan": plan,
+            },
+        }
