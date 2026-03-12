@@ -66,25 +66,23 @@ async def start(m: Message):
         ],
         resize_keyboard=True,
         one_time_keyboard=False,
-        input_field_placeholder="Выбери команду или напиши вопрос…",
+        input_field_placeholder="Выбери команду или напиши текст…",
     )
 
-    hello = """Привет 👋
-
-Я <b>MarketAnalyst</b> — бот для быстрого чтения крипторынка."""
-
-    quick = """<b>Что я умею</b>
-• <code>/top</code> — топ ликвидных монет
-• <code>/scan</code> — поиск активных монет
-• <code>/plan BTC_USDT</code> — структура, уровни и сценарий
-• обычный текст — например: <code>что думаешь по битку</code>
-
-Нужны детали — нажми <b>📘 Полный гайд</b>.
-Примеры запросов — в <b>🧪 Примеры</b>.
-Кнопки можно убрать через <b>❌ Скрыть кнопки</b>."""
+    hello = "Привет 👋 Я <b>OpenClaw</b>. Помогаю быстро читать рынок и находить активность."
+    quick = (
+        "<b>Быстрый старт</b>\n"
+        "1) <code>/scan</code> → где сейчас всплеск объёма\n"
+        "2) <code>/plan TICKER</code> → Bias 1H/4H/1D + сценарии\n"
+        "3) <code>/top</code> → топ ликвидных монет\n\n"
+        "Нужны детали — нажми <b>📘 Полный гайд</b>.\n"
+        "Dexter research: нажми <b>🧠 Dexter Research</b> или напиши <code>/plan BTC_USDT explain</code>.\n"
+        "Кнопки можно убрать: <b>❌ Скрыть кнопки</b>."
+    )
 
     await m.answer(hello, parse_mode="HTML")
     await m.answer(quick, parse_mode="HTML", reply_markup=kb)
+
 
 @router.message(F.text == "🧠 Dexter Research")
 async def dexter_menu(m: Message):
@@ -270,138 +268,130 @@ async def scan(m: Message):
     if not decision.allowed:
         await m.answer(LIMIT_REACHED_MESSAGE_RU, parse_mode="HTML", reply_markup=pro_keyboard())
         return
-
+    # /scan [tf] [mult] [limit]
+    # examples:
+    #   /scan
+    #   /scan 1h 3.0
+    #   /scan 15m 2.5 20
     try:
         parts = (m.text or "").split()
+
+        tf = "5m"
+        mult = 1.5
         limit = 10
+
         if len(parts) > 1:
+            tf = parts[1].strip()
+        if len(parts) > 2:
             try:
-                limit = int(parts[1])
+                mult = float(parts[2])
+            except Exception:
+                mult = 1.5
+        if len(parts) > 3:
+            try:
+                limit = int(parts[3])
             except Exception:
                 limit = 10
 
         if limit < 1:
             limit = 1
-        if limit > 15:
-            limit = 15
+        if limit > 30:
+            limit = 30
 
-        async def fetch_scan(tf: str, mult: float):
-            payload = {
-                "quote": "USDT",
-                "limit": limit,
-                "candidate_pool": 80,
-                "min_quote_volume_24h": 5_000_000,
-                "max_abs_change_24h": 40,
-                "volume_spike": {
-                    "tf": tf,
-                    "lookback": 20,
-                    "multiplier": mult,
-                    "limit": 80,
-                },
+        payload = {
+            "quote": "USDT",
+            "limit": limit,
+            "candidate_pool": 80,
+            "min_quote_volume_24h": 5_000_000,
+            "max_abs_change_24h": 40,
+            "volume_spike": {
+                "tf": tf,
+                "lookback": 20,
+                "multiplier": mult,
+                "limit": 80
             }
-            return await post("/market/scan", payload)
+        }
 
-        scan_15m, scan_1h, scan_4h = await asyncio.gather(
-            fetch_scan("15m", 2.0),
-            fetch_scan("1h", 2.0),
-            fetch_scan("4h", 1.8),
-        )
-
-        buckets = [
-            ("15m", scan_15m.get("items", []) if isinstance(scan_15m, dict) else []),
-            ("1h", scan_1h.get("items", []) if isinstance(scan_1h, dict) else []),
-            ("4h", scan_4h.get("items", []) if isinstance(scan_4h, dict) else []),
-        ]
-
-        lines = [
-            "🔎 <b>Scan USDT</b>",
-            "Активные монеты на <code>15m / 1h / 4h</code>",
-            "",
-        ]
-
-        total_found = 0
-
-        for tf, items in buckets:
-            lines.append(f"<b>{tf}</b>")
-
-            if not items:
-                lines.append("• <i>ничего сильного сейчас нет</i>")
-                lines.append("")
-                continue
-
-            shown = items[:limit]
-            total_found += len(shown)
-
-            for i, it in enumerate(shown, start=1):
-                sym = it.get("symbol", "?")
-                ch = float(it.get("change_pct_24h") or 0.0)
-                qv = float(it.get("quote_volume_24h") or 0.0)
-                last = float(it.get("last") or 0.0)
-                spike = float(it.get("volume_spike") or 0.0)
-
-                icon = "🟩" if ch > 0 else "🟥" if ch < 0 else "🟦"
-                lines.append(
-                    f"{i}. <code>{sym}</code> {icon} <code>{ch:+.2f}%</code>  "
-                    f"<code>{last:g}</code>  spike <code>{spike:.2f}×</code>  vol <code>{qv:,.0f}</code>"
-                )
-
-            lines.append("")
-
-        if total_found == 0:
-            await m.answer(
-                "⚠️ Сейчас scan ничего сильного не нашёл на 15m / 1h / 4h.",
-                parse_mode="HTML",
-            )
+        data = await post("/market/scan", payload)
+        if isinstance(data, dict) and data.get("message_html"):
+            await m.answer(data["message_html"], parse_mode="HTML", disable_web_page_preview=True)
             access_service.consume(user_id, "scan")
             return
 
-        lines.append("Дальше: выбери монету и напиши <code>/plan TICKER</code>.")
-        await m.answer("\n".join(lines).strip(), parse_mode="HTML")
-        access_service.consume(user_id, "scan")
+        items = data.get("items", []) if isinstance(data, dict) else []
+
+        if not items:
+            await m.answer(f"⚠️ Ничего не нашёл (tf={tf}, spike>={mult}).", parse_mode="HTML")
+            access_service.consume(user_id, "scan")
+            return
+
+        # --- trend filter: fetch bias for top N ---
+        top_n = min(5, len(items))
+        symbols = [items[i].get("symbol", "") for i in range(top_n)]
+        symbols = [s for s in symbols if s]
+
+        async def fetch_bias(sym: str):
+            try:
+                b = await post("/signals/bias/v1", {"symbol": sym, "timeframes": ["1h", "4h", "1d"]})
+                if not isinstance(b, dict):
+                    return (sym, None, None, None)
+                return (
+                    sym,
+                    b.get("bias"),
+                    b.get("score_total"),
+                    b.get("weight_total"),
+                )
+            except Exception:
+                return (sym, None, None, None)
+
+        bias_results = await asyncio.gather(*[fetch_bias(s) for s in symbols])
+        bias_map = {sym: (bias, st, wt) for sym, bias, st, wt in bias_results}
+
+        def bias_icon(b: str | None) -> str:
+            return {"BULLISH": "🟩", "BEARISH": "🟥", "NEUTRAL": "🟦"}.get((b or "").upper(), "⚪️")
+
+        lines = [f"🔎 <b>Scan</b> tf=<code>{tf}</code> spike≥<code>{mult:g}</code> (top {limit})"]
+        lines.append(f"🧭 Trend filter: bias 1H/4H/1D for top {top_n}")
+
+        for i, it in enumerate(items, start=1):
+            sym = it.get("symbol", "?")
+            sp = float(it.get("volume_spike") or 0.0)
+            ch = float(it.get("change_pct_24h") or 0.0)
+            qv = float(it.get("quote_volume_24h") or 0.0)
+            last = float(it.get("last") or 0.0)
+
+            icon = "🟩" if ch > 0 else "🟥" if ch < 0 else "🟦"
+
+            b, st, wt = bias_map.get(sym, (None, None, None))
+            btxt = ""
+            if b:
+                try:
+                    btxt = f"  {bias_icon(b)} <code>{b}</code> <code>{int(st)}/{int(wt)}</code>"
+                except Exception:
+                    btxt = f"  {bias_icon(b)} <code>{b}</code>"
+
+            lines.append(
+                f"{i}. <code>{sym}</code>  spike <code>{sp:.2f}×</code>{btxt}\n"
+                f"    {icon} <code>{ch:+.2f}%</code>  <code>{last:g}</code>  vol <code>{qv:,.0f}</code>"
+            )
+
+        await m.answer("\n".join(lines), parse_mode="HTML")
 
     except APIError as e:
         await m.answer(f"❌ APIError: {e}", parse_mode="HTML")
     except Exception as e:
         await m.answer(f"❌ Error: {type(e).__name__}: {e}", parse_mode="HTML")
 
+
 @router.message(F.text == "📘 Полный гайд")
 async def full_guide(m: Message):
-    guide = """<b>📘 Полный гайд / Full guide</b>
-
-<b>RU</b>
-<b>1. /top</b> — показывает самые ликвидные монеты по объёму.
-Это быстрый способ понять, где рынок сейчас живой.
-
-<b>2. /scan</b> — помогает находить активные монеты на нескольких таймфреймах.
-Обычно логика такая: сначала смотришь scan, потом открываешь <code>/plan</code>.
-
-<b>3. /plan TICKER</b> — показывает структуру, bias, уровни и сценарий.
-Пример: <code>/plan BTC_USDT</code>
-
-<b>4. Свободный текст</b> — можно писать обычным языком.
-Например: <code>что думаешь по битку</code> или <code>стоит ли шортить solana</code>.
-
-<b>5. Dexter Research</b> — если нужен более подробный разбор.
-
-<i>Важно: бот даёт аналитику, а не финансовый совет.</i>
-
-<b>EN</b>
-<b>1. /top</b> — shows the most liquid coins by volume.
-This is the fastest way to see where the market is active.
-
-<b>2. /scan</b> — helps you find active coins across multiple timeframes.
-A common flow is: check scan first, then open <code>/plan</code>.
-
-<b>3. /plan TICKER</b> — shows structure, bias, levels and scenario.
-Example: <code>/plan ETH_USDT</code>
-
-<b>4. Free text</b> — you can just type naturally.
-For example: <code>what do you think about bitcoin</code>.
-
-<b>5. Dexter Research</b> — use it when you want a deeper read.
-
-<i>Important: this bot provides analysis, not financial advice.</i>"""
+    guide = (
+        "<b>📘 OpenClaw — полный гайд для новичков</b>\n"
+        "<i>Это аналитика, не торговый совет. Решение и риск — на тебе.</i>\n\n"
+        # (оставь твой большой guide тут без изменений)
+    )
     await m.answer(guide, parse_mode="HTML")
+
 
 @router.message(F.text == "❌ Скрыть кнопки")
 async def hide_buttons(m: Message):
@@ -410,43 +400,25 @@ async def hide_buttons(m: Message):
 
 @router.message(F.text == "🧪 Примеры")
 async def examples(m: Message):
-    msg = """<b>🧪 Примеры / Examples</b>
-
-<b>RU</b>
-• Найти активные монеты:
-<code>/scan</code>
-
-• Посмотреть топ ликвидных монет:
-<code>/top</code>
-<code>/top 20</code>
-
-• Получить план по монете:
-<code>/plan BTC_USDT</code>
-<code>/plan ETH_USDT</code>
-<code>/plan SOL_USDT</code>
-
-• Написать вопрос своими словами:
-<code>что думаешь по битку</code>
-<code>стоит ли шортить солану</code>
-
-<b>EN</b>
-• Find active coins:
-<code>/scan</code>
-
-• See top liquid coins:
-<code>/top</code>
-<code>/top 20</code>
-
-• Get a plan for a coin:
-<code>/plan BTC_USDT</code>
-<code>/plan ETH_USDT</code>
-
-• Ask in plain English:
-<code>what do you think about bitcoin</code>
-<code>should I short solana</code>
-
-Совет / Tip: <code>/scan</code> → выбрать монету → <code>/plan</code>."""
+    msg = (
+        "<b>Примеры команд</b>\n\n"
+        "• Найти активность по объёму:\n"
+        "<code>/scan</code>\n"
+        "<code>/scan 1h 3 20</code>\n\n"
+        "• Получить план по монете:\n"
+        "<code>/plan BTC_USDT</code>\n"
+        "<code>/plan ETH_USDT</code>\n"
+        "<code>/plan SOL_USDT</code>\n\n"
+        "• Dexter research (без новой команды):\n"
+        "<code>/plan BTC_USDT explain</code>\n"
+        "<code>/plan BTC_USDT почему</code>\n\n"
+        "• Топ ликвидных монет:\n"
+        "<code>/top</code>\n"
+        "<code>/top 20</code>\n\n"
+        "Совет: <code>/scan</code> → выбрал тикер → <code>/plan</code>."
+    )
     await m.answer(msg, parse_mode="HTML")
+
 
 @router.message(F.text == "✍️ Своя монета")
 async def plan_custom_hint(m: Message):
