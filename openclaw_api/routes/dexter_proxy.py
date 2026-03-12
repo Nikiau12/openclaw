@@ -103,7 +103,7 @@ async def dexter_chat(req: dict):
     Proxy to Service C /chat (free-form trading chat).
     Falls back to OpenClaw plan when Service C fails.
     """
-    base = (os.getenv("DEXTER_AGENT_URL") or "").rstrip("/")
+    base = (os.getenv("DEXTER_AGENT_URL") or "").strip().rstrip("/")
     if not base:
         raise HTTPException(status_code=503, detail="DEXTER_AGENT_URL is not set")
 
@@ -116,6 +116,7 @@ async def dexter_chat(req: dict):
             r = await client.post(f"{base}/chat", json=req)
             r.raise_for_status()
             return r.json()
+
     except httpx.HTTPStatusError as e:
         plan = await plan_v3(PlanRequest(symbol=guessed, mode="structure"))
         msg = (plan.get("message_html") if isinstance(plan, dict) else None) or "<i>Plan unavailable</i>"
@@ -129,6 +130,7 @@ async def dexter_chat(req: dict):
                 "plan": plan,
             },
         }
+
     except Exception as e:
         plan = await plan_v3(PlanRequest(symbol=guessed, mode="structure"))
         msg = (plan.get("message_html") if isinstance(plan, dict) else None) or "<i>Plan unavailable</i>"
