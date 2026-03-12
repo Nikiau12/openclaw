@@ -74,7 +74,7 @@ async def start(m: Message):
 
 "
         "Я <b>MarketAnalyst</b> — бот для быстрого чтения крипторынка. "
-        "Я помогаю находить активные монеты, смотреть сетапы и быстро получать market research."
+        "Помогаю находить активные монеты, смотреть сетапы и быстро получать market research."
     )
 
     quick = (
@@ -82,7 +82,7 @@ async def start(m: Message):
 "
         "• <code>/top</code> — топ ликвидных монет
 "
-        "• <code>/scan</code> — монеты с активностью на <code>15m / 1h / 4h</code>
+        "• <code>/scan</code> — поиск активных монет
 "
         "• <code>/plan BTC_USDT</code> — структура, уровни и сценарий
 "
@@ -378,10 +378,10 @@ async def full_guide(m: Message):
 "
         "<b>1. /top</b> — показывает самые ликвидные монеты по объёму.
 "
-        "Это хороший способ быстро понять, где сейчас рынок живой.
+        "Это быстрый способ понять, где рынок сейчас живой.
 
 "
-        "<b>2. /scan</b> — ищет монеты с активностью на <code>15m</code>, <code>1h</code> и <code>4h</code>.
+        "<b>2. /scan</b> — помогает находить активные монеты.
 "
         "Обычно логика такая: сначала смотришь scan, потом открываешь <code>/plan</code>.
 
@@ -409,7 +409,7 @@ async def full_guide(m: Message):
         "This is the fastest way to see where the market is active.
 
 "
-        "<b>2. /scan</b> — finds coins with activity on <code>15m</code>, <code>1h</code> and <code>4h</code>.
+        "<b>2. /scan</b> — helps you find active coins.
 "
         "A common flow is: check scan first, then open <code>/plan</code>.
 
