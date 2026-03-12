@@ -367,11 +367,41 @@ async def scan(m: Message):
         await m.answer(f"❌ Error: {type(e).__name__}: {e}", parse_mode="HTML")
 @router.message(F.text == "📘 Guide / Полный гайд")
 async def full_guide(m: Message):
-    guide = (
-        "<b>📘 OpenClaw — полный гайд для новичков</b>\n"
-        "<i>Это аналитика, не торговый совет. Решение и риск — на тебе.</i>\n\n"
-        # (оставь твой большой guide тут без изменений)
-    )
+    guide = """<b>📘 Guide / Полный гайд</b>
+
+<b>RU</b>
+<b>1. /top</b> — показывает самые ликвидные монеты по объёму.
+Это быстрый способ понять, где рынок сейчас живой.
+
+<b>2. /scan</b> — показывает активные монеты на <code>15m</code>, <code>1h</code> и <code>4h</code>.
+Обычно логика такая: сначала смотришь <code>/scan</code>, потом открываешь <code>/plan</code>.
+
+<b>3. /plan TICKER</b> — показывает структуру, уровни и сценарий.
+Пример: <code>/plan BTC_USDT</code>
+
+<b>4. Свободный текст</b> — можно писать обычным языком.
+Например: <code>что думаешь по битку</code> или <code>стоит ли шортить solana</code>.
+
+<b>5. Dexter Research</b> — если нужен более подробный разбор.
+
+<i>Важно: бот даёт аналитику, а не финансовый совет.</i>
+
+<b>EN</b>
+<b>1. /top</b> — shows the most liquid coins by volume.
+This is the fastest way to see where the market is active.
+
+<b>2. /scan</b> — shows active coins on <code>15m</code>, <code>1h</code> and <code>4h</code>.
+A common flow is: check <code>/scan</code> first, then open <code>/plan</code>.
+
+<b>3. /plan TICKER</b> — shows structure, levels and scenario.
+Example: <code>/plan ETH_USDT</code>
+
+<b>4. Free text</b> — you can type naturally.
+For example: <code>what do you think about bitcoin</code>.
+
+<b>5. Dexter Research</b> — use it when you want a deeper read.
+
+<i>Important: this bot provides analysis, not financial advice.</i>"""
     await m.answer(guide, parse_mode="HTML")
 
 
@@ -382,23 +412,42 @@ async def hide_buttons(m: Message):
 
 @router.message(F.text == "🧪 Examples / Примеры")
 async def examples(m: Message):
-    msg = (
-        "<b>Примеры команд</b>\n\n"
-        "• Найти активность по объёму:\n"
-        "<code>/scan</code>\n"
-        "<code>/scan 1h 3 20</code>\n\n"
-        "• Получить план по монете:\n"
-        "<code>/plan BTC_USDT</code>\n"
-        "<code>/plan ETH_USDT</code>\n"
-        "<code>/plan SOL_USDT</code>\n\n"
-        "• Dexter research (без новой команды):\n"
-        "<code>/plan BTC_USDT explain</code>\n"
-        "<code>/plan BTC_USDT почему</code>\n\n"
-        "• Топ ликвидных монет:\n"
-        "<code>/top</code>\n"
-        "<code>/top 20</code>\n\n"
-        "Совет: <code>/scan</code> → выбрал тикер → <code>/plan</code>."
-    )
+    msg = """<b>🧪 Examples / Примеры</b>
+
+<b>RU</b>
+• Найти активные монеты:
+<code>/scan</code>
+
+• Посмотреть топ ликвидных монет:
+<code>/top</code>
+<code>/top 20</code>
+
+• Получить план по монете:
+<code>/plan BTC_USDT</code>
+<code>/plan ETH_USDT</code>
+<code>/plan SOL_USDT</code>
+
+• Написать вопрос своими словами:
+<code>что думаешь по битку</code>
+<code>стоит ли шортить солану</code>
+
+<b>EN</b>
+• Find active coins:
+<code>/scan</code>
+
+• See top liquid coins:
+<code>/top</code>
+<code>/top 20</code>
+
+• Get a plan for a coin:
+<code>/plan BTC_USDT</code>
+<code>/plan ETH_USDT</code>
+
+• Ask in plain English:
+<code>what do you think about bitcoin</code>
+<code>should I short solana</code>
+
+Tip: <code>/scan</code> → choose a coin → <code>/plan</code>."""
     await m.answer(msg, parse_mode="HTML")
 
 
