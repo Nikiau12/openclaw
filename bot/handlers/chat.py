@@ -271,13 +271,13 @@ async def scan(m: Message):
 
     try:
         parts = (m.text or "").split()
-        limit = 10
+        limit = 11
 
         if len(parts) > 1:
             try:
                 limit = int(parts[1])
             except Exception:
-                limit = 10
+                limit = 11
 
         if limit < 1:
             limit = 1
