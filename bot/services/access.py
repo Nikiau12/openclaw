@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
-from bot.config import ACCESS_STATE_PATH
+from bot.config import ACCESS_STATE_PATH, ADMIN_USER_IDS
 from bot.storage.access_store import JsonAccessStore
 
 
@@ -69,6 +69,15 @@ class AccessService:
     def check(self, user_id: int, feature: str) -> AccessDecision:
         user = self.get_user_state(user_id)
 
+        if user_id in ADMIN_USER_IDS:
+            return AccessDecision(
+                allowed=True,
+                is_pro=True,
+                remaining=999999,
+                limit=999999,
+                reason="admin",
+            )
+
         if self._is_pro_active(user):
             return AccessDecision(
                 allowed=True,
@@ -101,6 +110,8 @@ class AccessService:
 
     def consume(self, user_id: int, feature: str) -> None:
         user = self.get_user_state(user_id)
+        if user_id in ADMIN_USER_IDS:
+            return
         if self._is_pro_active(user):
             return
         usage = user.setdefault("usage", {})
