@@ -5,6 +5,7 @@ from bot.config import TELEGRAM_BOT_TOKEN
 from bot.handlers.chat import router as chat_router
 from bot.handlers.market import router as market_router
 from bot.handlers.pro import router as pro_router
+from bot.handlers.free_text_dexter import router as free_text_router
 
 async def main():
     if not TELEGRAM_BOT_TOKEN:
@@ -13,6 +14,7 @@ async def main():
     dp = Dispatcher()
     dp.include_router(chat_router)
     dp.include_router(pro_router)
+    dp.include_router(free_text_router)
     dp.include_router(market_router)
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
