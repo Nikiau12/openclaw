@@ -4,31 +4,36 @@ import re
 
 def strip_ai_block(html: str) -> str:
     """
-    Убирает AI-аналитику (Key points / Interpretation / Alignment / Scenarios / Confidence)
-    и скрывает служебную подпись structure plan.
+    Чистит служебные dexter-блоки и брендовые подписи,
+    оставляя только основную полезную аналитику.
     """
     if not html:
         return html
-    # 1) убрать большой <div> с аналитикой (внутри обычно есть <h4>Ключевые пункты</h4>)
-    html2 = re.sub(r"<div>\s*<div>🤖 AI:.*?</div>\s*<h4>Ключевые пункты</h4>.*?</div>\s*", "", html, flags=re.S)
-    # 2) на всякий случай убрать любые секции с заголовками аналитики, если они не в первом div
+
+    html2 = html
+
+    # старые html-секции
+    html2 = re.sub(r"<div>\s*<div>🤖 AI:.*?</div>\s*<h4>Ключевые пункты</h4>.*?</div>\s*", "", html2, flags=re.S)
     html2 = re.sub(r"<h4>Ключевые пункты</h4>.*?(?=<b>🗂 Sources</b>)", "", html2, flags=re.S)
     html2 = re.sub(r"<h4>Интерпретация</h4>.*?(?=<h4>|<b>🗂 Sources</b>)", "", html2, flags=re.S)
     html2 = re.sub(r"<h4>Согласование</h4>.*?(?=<h4>|<b>🗂 Sources</b>)", "", html2, flags=re.S)
     html2 = re.sub(r"<h4>Сценарии</h4>.*?(?=<div><b>Уверенность:|<b>🗂 Sources</b>)", "", html2, flags=re.S)
     html2 = re.sub(r"<div><b>Уверенность:.*?</div>", "", html2, flags=re.S)
 
-    # strip dexter meta/header lines
-    html2 = re.sub(r".*🗞️\s*News \(last 168h\).*", "", html2, flags=re.I)
-    html2 = re.sub(r".*TL;DR:.*", "", html2, flags=re.I)
-    html2 = re.sub(r".*🤖\s*AI:\s*(ON|OFF).*", "", html2, flags=re.I)
+    # служебные строки dexter
+    patterns = [
+        r"(?im)^.*🗞️\s*News \(last 168h\).*$",
+        r"(?im)^.*TL;DR:.*$",
+        r"(?im)^.*🤖\s*AI:\s*(ON|OFF).*$",
+        r"(?im)^.*📁\s*Sources.*$",
+        r"(?im)^.*No recent news found\.?$",
+        r"(?im)^.*OpenClaw structure plan.*$",
+        r"(?im)^.*📌\s*OpenClaw structure plan.*$",
+    ]
+    for p in patterns:
+        html2 = re.sub(p, "", html2)
 
-    # strip branding label
-    html2 = re.sub(r".*OpenClaw structure plan.*", "", html2, flags=re.I)
-    html2 = re.sub(r".*📌\s*OpenClaw structure plan.*", "", html2, flags=re.I)
-
-    # collapse blank lines
-    html2 = re.sub(r"\n{3,}", "\n\n", html2)
+    html2 = re.sub(r"\n{3,}", "\n\n", html2).strip()
     return html2
 
 
@@ -288,6 +293,7 @@ async def free_text_to_dexter(message: Message):
             ai_data = await post("/dexter/chat", ai_payload, timeout=45)
             ai_dt = time.monotonic() - t1
             ai_html = (ai_data or {}).get("message_html") if isinstance(ai_data, dict) else None
+            ai_html = strip_ai_block(ai_html) if ai_html else ai_html
             ai_extra = "\n\n<i>⏱ ai {:.1f}s</i>".format(ai_dt)
             await safe_send_html(message, ai_html or "<i>AI empty</i>", ai_extra)
         except Exception:
