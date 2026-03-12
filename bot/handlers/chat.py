@@ -356,8 +356,7 @@ async def scan(m: Message):
             return
 
         lines.append("Дальше: выбери монету и напиши <code>/plan TICKER</code>.")
-        await m.answer("
-".join(lines).strip(), parse_mode="HTML")
+        await m.answer("\n".join(lines).strip(), parse_mode="HTML")
         access_service.consume(user_id, "scan")
 
     except APIError as e:
