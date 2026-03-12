@@ -36,9 +36,9 @@ log = logging.getLogger(__name__)
 _UI_BUTTONS = {
     "🧠 Dexter Research",
     "⬅️ Назад",
-    "📘 Полный гайд",
+    "📘 Guide / Полный гайд",
     "❌ Скрыть кнопки",
-    "🧪 Примеры",
+    "🧪 Examples / Примеры",
     "✍️ Своя монета",
 }
 

@@ -60,7 +60,7 @@ async def start(m: Message):
         keyboard=[
             [KeyboardButton(text="/top"), KeyboardButton(text="/scan")],
             [KeyboardButton(text="/plan BTC_USDT"), KeyboardButton(text="/plan ETH_USDT")],
-            [KeyboardButton(text="📘 Полный гайд"), KeyboardButton(text="🧪 Примеры")],
+            [KeyboardButton(text="📘 Guide / Полный гайд"), KeyboardButton(text="🧪 Examples / Примеры")],
             [KeyboardButton(text="🧠 Dexter Research")],
             [KeyboardButton(text="❌ Скрыть кнопки")],
         ],
@@ -75,7 +75,7 @@ async def start(m: Message):
         "1) <code>/scan</code> → где сейчас всплеск объёма\n"
         "2) <code>/plan TICKER</code> → Bias 1H/4H/1D + сценарии\n"
         "3) <code>/top</code> → топ ликвидных монет\n\n"
-        "Нужны детали — нажми <b>📘 Полный гайд</b>.\n"
+        "Нужны детали — нажми <b>📘 Guide / Полный гайд</b>.\n"
         "Dexter research: нажми <b>🧠 Dexter Research</b> или напиши <code>/plan BTC_USDT explain</code>.\n"
         "Кнопки можно убрать: <b>❌ Скрыть кнопки</b>."
     )
@@ -365,7 +365,7 @@ async def scan(m: Message):
         await m.answer(f"❌ APIError: {e}", parse_mode="HTML")
     except Exception as e:
         await m.answer(f"❌ Error: {type(e).__name__}: {e}", parse_mode="HTML")
-@router.message(F.text == "📘 Полный гайд")
+@router.message(F.text == "📘 Guide / Полный гайд")
 async def full_guide(m: Message):
     guide = (
         "<b>📘 OpenClaw — полный гайд для новичков</b>\n"
@@ -380,7 +380,7 @@ async def hide_buttons(m: Message):
     await m.answer("Ок, убрал кнопки. Если нужно вернуть — напиши /start.", reply_markup=ReplyKeyboardRemove())
 
 
-@router.message(F.text == "🧪 Примеры")
+@router.message(F.text == "🧪 Examples / Примеры")
 async def examples(m: Message):
     msg = (
         "<b>Примеры команд</b>\n\n"
