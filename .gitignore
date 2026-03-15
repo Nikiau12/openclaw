@@ -16,3 +16,4 @@ __pycache__/
 *.bak
 data/
 *.bak*
+slate.json
