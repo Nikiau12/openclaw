@@ -23,11 +23,7 @@ _VERDICT_ICON = {
 async def insight_command(message: Message) -> None:
     parts = (message.text or "").split(maxsplit=1)
     if len(parts) < 2:
-        await message.answer(
-            "<b>/insight</b> — анализ структуры + новостной фон по монете.\n\n"
-            "Пример: <code>/insight BTC_USDT</code>",
-            parse_mode="HTML",
-        )
+        await message.answer("Использование: /insight BTCUSDT")
         return
 
     symbol = parts[1].strip().upper()
