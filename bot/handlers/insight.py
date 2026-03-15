@@ -46,7 +46,7 @@ async def insight_command(message: Message) -> None:
     try:
         data = await post("/insight", {"symbol": symbol})
     except APIError as e:
-        await message.answer(f"⚠️ API: {e}")
+        await message.answer("⚠️ Не удалось получить insight. Попробуй ещё раз через минуту.")
         return
 
     icon = _VERDICT_ICON.get(data.get("verdict", ""), "❓")

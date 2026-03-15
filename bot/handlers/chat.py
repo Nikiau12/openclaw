@@ -178,9 +178,9 @@ async def dexter_quick_pick(m: Message):
         await m.answer(msg or "⚠️ empty", parse_mode="HTML", disable_web_page_preview=True)
         access_service.consume(user_id, "plan")
     except APIError as e:
-        await m.answer(f"❌ APIError: {e}", parse_mode="HTML")
+        await m.answer("⚠️ Не удалось получить данные. Попробуй ещё раз через минуту.", parse_mode="HTML")
     except Exception as e:
-        await m.answer(f"❌ Error: {type(e).__name__}: {e}", parse_mode="HTML")
+        await m.answer("⚠️ Что-то пошло не так. Попробуй ещё раз через минуту.", parse_mode="HTML")
 
 
 @router.message(Command("plan"))
@@ -239,9 +239,9 @@ async def plan(m: Message):
         msg = data.get("message_html") if isinstance(data, dict) else None
         await m.answer(msg or "⚠️ empty", parse_mode="HTML", disable_web_page_preview=True)
     except APIError as e:
-        await m.answer(f"❌ APIError: {e}", parse_mode="HTML")
+        await m.answer("⚠️ Не удалось получить данные. Попробуй ещё раз через минуту.", parse_mode="HTML")
     except Exception as e:
-        await m.answer(f"❌ Error: {type(e).__name__}: {e}", parse_mode="HTML")
+        await m.answer("⚠️ Что-то пошло не так. Попробуй ещё раз через минуту.", parse_mode="HTML")
 
 
 @router.message(Command("top"))
@@ -290,9 +290,9 @@ async def top(m: Message):
         access_service.consume(user_id, "top")
 
     except APIError as e:
-        await m.answer(f"❌ APIError: {e}", parse_mode="HTML")
+        await m.answer("⚠️ Не удалось получить данные. Попробуй ещё раз через минуту.", parse_mode="HTML")
     except Exception as e:
-        await m.answer(f"❌ Error: {type(e).__name__}: {e}", parse_mode="HTML")
+        await m.answer("⚠️ Что-то пошло не так. Попробуй ещё раз через минуту.", parse_mode="HTML")
 
 
 @router.message(Command("scan"))
@@ -396,9 +396,9 @@ async def scan(m: Message):
         access_service.consume(user_id, "scan")
 
     except APIError as e:
-        await m.answer(f"❌ APIError: {e}", parse_mode="HTML")
+        await m.answer("⚠️ Не удалось получить данные. Попробуй ещё раз через минуту.", parse_mode="HTML")
     except Exception as e:
-        await m.answer(f"❌ Error: {type(e).__name__}: {e}", parse_mode="HTML")
+        await m.answer("⚠️ Что-то пошло не так. Попробуй ещё раз через минуту.", parse_mode="HTML")
 @router.message(F.text == "📘 Guide / Полный гайд")
 async def full_guide(m: Message):
     guide = """<b>📘 Guide / Полный гайд</b>
@@ -521,4 +521,4 @@ async def any_text(m: Message):
         data = await post("/chat", {"text": txt, "user_id": m.from_user.id})
         await m.answer(data.get("answer_html", "⚠️ empty"), parse_mode="HTML")
     except APIError as e:
-        await m.answer(f"❌ API: {e}", parse_mode="HTML")
+        await m.answer("⚠️ Сервис временно недоступен. Попробуй ещё раз через минуту.", parse_mode="HTML")
