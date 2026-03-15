@@ -18,7 +18,7 @@ from openclaw_api.indicators.candles import parse_mexc_klines, drop_unclosed_tai
 
 
 CRYPTOPANIC_API_TOKEN = os.getenv("CRYPTOPANIC_API_TOKEN", "").strip()
-CRYPTOPANIC_BASE = "https://cryptopanic.com/api/v1/posts/"
+CRYPTOPANIC_BASE = "https://cryptopanic.com/api/developer/v1/posts/"
 
 
 @dataclass
