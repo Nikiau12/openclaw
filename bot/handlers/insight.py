@@ -5,7 +5,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 from bot.services.access import AccessService
-from bot.services.openclaw_api import post, APIError
+from bot.clients.api import post, APIError
 from bot.handlers.pro import LIMIT_REACHED_MESSAGE_RU, pro_keyboard
 
 router = Router()
