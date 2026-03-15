@@ -1,0 +1,15 @@
+I built MarketAnalyst AI — a Telegram bot for fast crypto analysis.
+It helps turn market noise into a clearer picture.
+New users get 3 free tries.
+
+---
+
+Example prompt: "что по btc"
+Result: BTC shows a neutral-to-bullish structure above support. Main idea: wait for confirmation near key levels and avoid chasing impulsive candles.
+That’s the idea behind MarketAnalyst AI: faster clarity, less noise.
+
+---
+
+Most traders waste time jumping between charts, news, and random takes.
+MarketAnalyst AI puts the first structured view directly into Telegram.
+3 free tries for new users.
