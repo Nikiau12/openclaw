@@ -112,6 +112,12 @@ async def start(m: Message):
 
 Здесь можно быстро посмотреть, где в рынке есть движение, какие монеты сейчас активны и какой по ним сценарий.
 
+<b>Как пользоваться:</b>
+• <code>/market</code> — быстрая сводка по монете
+• <code>/plan</code> — структура, уровни и сценарий
+• <code>/insight</code> — структура + новостной фон
+• <b>Dexter Research</b> — более глубокий разбор
+
 Для этого используй кнопки ниже или просто напиши вопрос своими словами.
 
 ———
@@ -121,6 +127,12 @@ Hello 👋
 I’m <b>MarketAnalyst</b>.
 
 Here you can quickly see where the market is moving, which coins are active right now, and what the current setup looks like.
+
+<b>How to use it:</b>
+• <code>/market</code> — quick coin snapshot
+• <code>/plan</code> — structure, levels and scenario
+• <code>/insight</code> — structure + news context
+• <b>Dexter Research</b> — deeper research
 
 Use the buttons below or just type your question in plain English."""
 
@@ -421,18 +433,21 @@ async def full_guide(m: Message):
 Это быстрый способ понять, где рынок сейчас живой.
 
 <b>2. /scan</b> — показывает активные монеты на <code>15m</code>, <code>1h</code> и <code>4h</code>.
-Обычно логика такая: сначала смотришь <code>/scan</code>, потом открываешь <code>/plan</code>.
+Обычно логика такая: сначала смотришь <code>/scan</code>, потом открываешь <code>/plan</code> или <code>/insight</code>.
 
-<b>3. /plan TICKER</b> — показывает структуру, уровни и сценарий.
+<b>3. /market TICKER</b> — быстрая сводка по монете: цена, изменение и объём.
+Пример: <code>/market BTC</code>
+
+<b>4. /plan TICKER</b> — показывает структуру, уровни и сценарий.
 Пример: <code>/plan BTC_USDT</code>
 
-<b>3.5. /insight TICKER</b> — структура + новостной фон по монете.
+<b>5. /insight TICKER</b> — структура + новостной фон по монете.
 Пример: <code>/insight BTC_USDT</code>
 
-<b>4. Свободный текст</b> — можно писать обычным языком.
+<b>6. Свободный текст</b> — можно писать обычным языком.
 Например: <code>что думаешь по битку</code> или <code>стоит ли шортить solana</code>.
 
-<b>5. Dexter Research</b> — если нужен более подробный разбор.
+<b>7. Dexter Research</b> — если нужен более подробный и длинный разбор.
 
 <i>Важно: бот даёт аналитику, а не финансовый совет.</i>
 
@@ -441,18 +456,21 @@ async def full_guide(m: Message):
 This is the fastest way to see where the market is active.
 
 <b>2. /scan</b> — shows active coins on <code>15m</code>, <code>1h</code> and <code>4h</code>.
-A common flow is: check <code>/scan</code> first, then open <code>/plan</code>.
+A common flow is: check <code>/scan</code> first, then open <code>/plan</code> or <code>/insight</code>.
 
-<b>3. /plan TICKER</b> — shows structure, levels and scenario.
+<b>3. /market TICKER</b> — quick coin snapshot: price, change and volume.
+Example: <code>/market BTC</code>
+
+<b>4. /plan TICKER</b> — shows structure, levels and scenario.
 Example: <code>/plan ETH_USDT</code>
 
-<b>3.5. /insight TICKER</b> — structure + news context for a coin.
+<b>5. /insight TICKER</b> — structure + news context for a coin.
 Example: <code>/insight BTC_USDT</code>
 
-<b>4. Free text</b> — you can type naturally.
+<b>6. Free text</b> — you can type naturally.
 For example: <code>what do you think about bitcoin</code>.
 
-<b>5. Dexter Research</b> — use it when you want a deeper read.
+<b>7. Dexter Research</b> — use it when you want a deeper and longer read.
 
 <i>Important: this bot provides analysis, not financial advice.</i>"""
     await m.answer(guide, parse_mode="HTML")
@@ -475,6 +493,9 @@ async def examples(m: Message):
 <code>/top</code>
 <code>/top 20</code>
 
+• Получить быструю сводку по монете:
+<code>/market BTC</code>
+
 • Получить план по монете:
 <code>/plan BTC_USDT</code>
 <code>/plan ETH_USDT</code>
@@ -494,6 +515,9 @@ async def examples(m: Message):
 • See top liquid coins:
 <code>/top</code>
 <code>/top 20</code>
+
+• Get a quick coin snapshot:
+<code>/market BTC</code>
 
 • Get a plan for a coin:
 <code>/plan BTC_USDT</code>
