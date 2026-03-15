@@ -8,6 +8,7 @@ from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKey
 from bot.clients.api import get, post, APIError
 from bot.services.access import AccessService
 from bot.handlers.pro import LIMIT_REACHED_MESSAGE_RU, pro_keyboard
+from bot.handlers.free_text_dexter import _should_handle
 
 
 router = Router()
@@ -529,6 +530,10 @@ async def any_text(m: Message):
     txt = (m.text or "").strip()
     if not txt:
         return
+
+    if _should_handle(txt):
+        return
+
     try:
         data = await post("/chat", {"text": txt, "user_id": m.from_user.id})
         await m.answer(data.get("answer_html", "⚠️ empty"), parse_mode="HTML")
