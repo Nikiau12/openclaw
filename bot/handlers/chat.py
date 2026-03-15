@@ -9,8 +9,16 @@ from bot.clients.api import get, post, APIError
 from bot.services.access import AccessService
 from bot.handlers.pro import LIMIT_REACHED_MESSAGE_RU, pro_keyboard
 
+
 router = Router()
 access_service = AccessService()
+
+def _usage_hint(user_id: int, feature: str) -> str:
+    decision = access_service.check(user_id, feature)
+    if decision.is_pro:
+        return ""
+    used = decision.limit - decision.remaining
+    return f"\n\n<i>💡 Использовано {used} из {decision.limit} бесплатных запросов. /pro — безлимит.</i>"
 
 # =========================
 # Dexter routing (no new command)
@@ -161,8 +169,9 @@ async def dexter_quick_pick(m: Message):
     try:
         dex = await post("/dexter/chat", {"query": symbol, "symbol": symbol, "analysis": True})
         if isinstance(dex, dict) and dex.get("ok") and dex.get("message_html"):
-            await m.answer(dex["message_html"], parse_mode="HTML", disable_web_page_preview=True)
             access_service.consume(user_id, "plan")
+            msg = dex["message_html"] + _usage_hint(user_id, "plan")
+            await m.answer(msg, parse_mode="HTML", disable_web_page_preview=True)
             return
     except APIError:
         pass
@@ -175,8 +184,9 @@ async def dexter_quick_pick(m: Message):
         if not isinstance(data, dict) or not data.get("ok"):
             data = await post("/plan/v3", {"symbol": symbol})
         msg = data.get("message_html") if isinstance(data, dict) else None
-        await m.answer(msg or "⚠️ empty", parse_mode="HTML", disable_web_page_preview=True)
         access_service.consume(user_id, "plan")
+        final_msg = (msg or "⚠️ empty") + _usage_hint(user_id, "plan")
+        await m.answer(final_msg, parse_mode="HTML", disable_web_page_preview=True)
     except APIError as e:
         await m.answer("⚠️ Не удалось получить данные. Попробуй ещё раз через минуту.", parse_mode="HTML")
     except Exception as e:
@@ -223,8 +233,9 @@ async def plan(m: Message):
         try:
             dex = await post("/dexter/chat", {"query": symbol, "symbol": symbol, "analysis": False})
             if isinstance(dex, dict) and dex.get("ok") and dex.get("message_html"):
-                await m.answer(_sanitize_dexter_html(dex["message_html"]), parse_mode="HTML", disable_web_page_preview=True)
                 access_service.consume(user_id, "plan")
+                msg = _sanitize_dexter_html(dex["message_html"]) + _usage_hint(user_id, "plan")
+                await m.answer(msg, parse_mode="HTML", disable_web_page_preview=True)
                 return
         except APIError:
             pass
@@ -237,7 +248,8 @@ async def plan(m: Message):
         if not isinstance(data, dict) or not data.get("ok"):
             data = await post("/plan/v3", {"symbol": symbol})
         msg = data.get("message_html") if isinstance(data, dict) else None
-        await m.answer(msg or "⚠️ empty", parse_mode="HTML", disable_web_page_preview=True)
+        final_msg = (msg or "⚠️ empty") + _usage_hint(user_id, "plan")
+        await m.answer(final_msg, parse_mode="HTML", disable_web_page_preview=True)
     except APIError as e:
         await m.answer("⚠️ Не удалось получить данные. Попробуй ещё раз через минуту.", parse_mode="HTML")
     except Exception as e:
@@ -286,8 +298,9 @@ async def top(m: Message):
                 f"<code>{last:g}</code>  vol <code>{qv:,.0f}</code>"
             )
 
-        await m.answer("\n".join(lines), parse_mode="HTML")
         access_service.consume(user_id, "top")
+        final_msg = "\n".join(lines) + _usage_hint(user_id, "top")
+        await m.answer(final_msg, parse_mode="HTML")
 
     except APIError as e:
         await m.answer("⚠️ Не удалось получить данные. Попробуй ещё раз через минуту.", parse_mode="HTML")
@@ -384,16 +397,15 @@ async def scan(m: Message):
             lines.append("")
 
         if total_found == 0:
-            await m.answer(
-                "⚠️ Сейчас scan ничего сильного не нашёл на 15m / 1h / 4h.",
-                parse_mode="HTML",
-            )
             access_service.consume(user_id, "scan")
+            msg = "⚠️ Сейчас scan ничего сильного не нашёл на 15m / 1h / 4h." + _usage_hint(user_id, "scan")
+            await m.answer(msg, parse_mode="HTML")
             return
 
         lines.append("Дальше: <code>/plan TICKER</code> — структура, <code>/insight TICKER</code> — структура + новости.")
-        await m.answer("\n".join(lines).strip(), parse_mode="HTML")
         access_service.consume(user_id, "scan")
+        final_msg = "\n".join(lines).strip() + _usage_hint(user_id, "scan")
+        await m.answer(final_msg, parse_mode="HTML")
 
     except APIError as e:
         await m.answer("⚠️ Не удалось получить данные. Попробуй ещё раз через минуту.", parse_mode="HTML")

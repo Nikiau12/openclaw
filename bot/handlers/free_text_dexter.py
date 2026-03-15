@@ -50,7 +50,15 @@ from bot.handlers.pro import LIMIT_REACHED_MESSAGE_RU, pro_keyboard
 
 router = Router()
 log = logging.getLogger(__name__)
+
 access_service = AccessService()
+
+def _usage_hint(user_id: int, feature: str) -> str:
+    decision = access_service.check(user_id, feature)
+    if decision.is_pro:
+        return ""
+    used = decision.limit - decision.remaining
+    return f"\n\n<i>💡 Использовано {used} из {decision.limit} бесплатных запросов. /pro — безлимит.</i>"
 
 # UI buttons handled elsewhere — don't intercept
 _UI_BUTTONS = {
@@ -275,8 +283,12 @@ async def free_text_to_dexter(message: Message):
         plan_dt = time.monotonic() - t0
         plan_html = (plan_data or {}).get("message_html") if isinstance(plan_data, dict) else None
         plan_html = strip_ai_block(plan_html) if plan_html else plan_html
-        await safe_send_html(message, plan_html or "<i>Dexter unavailable</i>")
         access_service.consume(user_id, "analytics")
+        await safe_send_html(
+            message,
+            plan_html or "<i>Dexter unavailable</i>",
+            _usage_hint(user_id, "analytics"),
+        )
     except Exception:
         log.exception("free_text_dexter: plan-first failed q=%r sym=%r", q_clean, sym)
         await message.answer("⚠️ Dexter временно недоступен. Попробуй ещё раз через минуту.")

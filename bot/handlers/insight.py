@@ -8,8 +8,16 @@ from bot.services.access import AccessService
 from bot.clients.api import post, APIError
 from bot.handlers.pro import LIMIT_REACHED_MESSAGE_RU, pro_keyboard
 
+
 router = Router()
 access_service = AccessService()
+
+def _usage_hint(user_id: int, feature: str) -> str:
+    decision = access_service.check(user_id, feature)
+    if decision.is_pro:
+        return ""
+    used = decision.limit - decision.remaining
+    return f"\n\n<i>💡 Использовано {used} из {decision.limit} бесплатных запросов. /pro — безлимит.</i>"
 
 _VERDICT_ICON = {
     "bullish": "🟩",
@@ -64,4 +72,5 @@ async def insight_command(message: Message) -> None:
     )
 
     access_service.consume(user_id, "analytics")
+    text += _usage_hint(user_id, "analytics")
     await message.answer(text, parse_mode="HTML")
