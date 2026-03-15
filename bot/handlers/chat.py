@@ -87,9 +87,9 @@ async def start(m: Message):
     kb = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="/top"), KeyboardButton(text="/scan")],
-            [KeyboardButton(text="/plan BTC_USDT"), KeyboardButton(text="/plan ETH_USDT")],
+            [KeyboardButton(text="/plan BTC_USDT"), KeyboardButton(text="/insight BTC_USDT")],
+            [KeyboardButton(text="/plan ETH_USDT"), KeyboardButton(text="🧠 Dexter Research")],
             [KeyboardButton(text="📘 Guide / Полный гайд"), KeyboardButton(text="🧪 Examples / Примеры")],
-            [KeyboardButton(text="🧠 Dexter Research")],
             [KeyboardButton(text="❌ Скрыть кнопки")],
         ],
         resize_keyboard=True,
@@ -391,7 +391,7 @@ async def scan(m: Message):
             access_service.consume(user_id, "scan")
             return
 
-        lines.append("Дальше: выбери монету и напиши <code>/plan TICKER</code>.")
+        lines.append("Дальше: <code>/plan TICKER</code> — структура, <code>/insight TICKER</code> — структура + новости.")
         await m.answer("\n".join(lines).strip(), parse_mode="HTML")
         access_service.consume(user_id, "scan")
 
@@ -413,6 +413,9 @@ async def full_guide(m: Message):
 <b>3. /plan TICKER</b> — показывает структуру, уровни и сценарий.
 Пример: <code>/plan BTC_USDT</code>
 
+<b>3.5. /insight TICKER</b> — структура + новостной фон по монете.
+Пример: <code>/insight BTC_USDT</code>
+
 <b>4. Свободный текст</b> — можно писать обычным языком.
 Например: <code>что думаешь по битку</code> или <code>стоит ли шортить solana</code>.
 
@@ -429,6 +432,9 @@ A common flow is: check <code>/scan</code> first, then open <code>/plan</code>.
 
 <b>3. /plan TICKER</b> — shows structure, levels and scenario.
 Example: <code>/plan ETH_USDT</code>
+
+<b>3.5. /insight TICKER</b> — structure + news context for a coin.
+Example: <code>/insight BTC_USDT</code>
 
 <b>4. Free text</b> — you can type naturally.
 For example: <code>what do you think about bitcoin</code>.
@@ -461,6 +467,9 @@ async def examples(m: Message):
 <code>/plan ETH_USDT</code>
 <code>/plan SOL_USDT</code>
 
+• Посмотреть структуру + новостной фон:
+<code>/insight BTC_USDT</code>
+
 • Написать вопрос своими словами:
 <code>что думаешь по битку</code>
 <code>стоит ли шортить солану</code>
@@ -477,11 +486,14 @@ async def examples(m: Message):
 <code>/plan BTC_USDT</code>
 <code>/plan ETH_USDT</code>
 
+• See structure + news context:
+<code>/insight BTC_USDT</code>
+
 • Ask in plain English:
 <code>what do you think about bitcoin</code>
 <code>should I short solana</code>
 
-Tip: <code>/scan</code> → choose a coin → <code>/plan</code>."""
+Tip: <code>/scan</code> → choose a coin → <code>/plan</code> or <code>/insight</code>."""
     await m.answer(msg, parse_mode="HTML")
 
 
