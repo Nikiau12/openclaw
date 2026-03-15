@@ -26,6 +26,31 @@ _VERDICT_ICON = {
     "conflicted": "⚠️",
 }
 
+def _insight_summary(data: dict) -> str:
+    bias = str(data.get("bias", "NEUTRAL")).upper()
+    news = str(data.get("news_sentiment", "unavailable")).lower()
+    verdict = str(data.get("verdict", "neutral")).lower()
+    chart_only = bool(data.get("chart_only"))
+
+    if chart_only:
+        if bias == "BULLISH":
+            return "Чарт остаётся бычьим. Новости сейчас недоступны, вывод построен только по структуре."
+        if bias == "BEARISH":
+            return "Чарт остаётся медвежьим. Новости сейчас недоступны, вывод построен только по структуре."
+        return "Чёткой направленности по чарту нет. Новости сейчас недоступны, вывод построен только по структуре."
+
+    if verdict == "conflicted":
+        return "Чарт и новостной фон сейчас противоречат друг другу — сигнал менее чистый."
+    if bias == "BULLISH" and news == "bullish":
+        return "Чарт и новостной фон смотрят в одну сторону: фон скорее бычий."
+    if bias == "BEARISH" and news == "bearish":
+        return "Чарт и новостной фон смотрят в одну сторону: фон скорее медвежий."
+    if bias == "BULLISH":
+        return "Чарт остаётся бычьим, но новостной фон не даёт сильного дополнительного подтверждения."
+    if bias == "BEARISH":
+        return "Чарт остаётся медвежьим, но новостной фон не даёт сильного дополнительного подтверждения."
+    return "Рынок выглядит смешанно: явного преимущества по направлению сейчас нет."
+
 
 @router.message(Command("insight"))
 async def insight_command(message: Message) -> None:
@@ -61,8 +86,11 @@ async def insight_command(message: Message) -> None:
     news_line = "" if data.get("chart_only") else f"\n📰 <b>Новости:</b> {data.get('news_sentiment', '—')}"
     conflicts = "\n".join(f"⚡️ {c}" for c in data.get("conflicts", []))
 
+    summary = _insight_summary(data)
+
     text = (
         f"{icon} <b>{data.get('symbol', symbol)}</b> — <b>{str(data.get('verdict', 'neutral')).upper()}</b>\n\n"
+        f"🧭 <b>Вывод:</b> {summary}\n\n"
         f"📊 <b>Чарт:</b> {data.get('bias', 'NEUTRAL')}"
         f"{news_line}\n"
         f"🏗 <b>Структура:</b> {data.get('structure_note') or '—'}\n"
