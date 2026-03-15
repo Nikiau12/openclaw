@@ -275,8 +275,7 @@ async def free_text_to_dexter(message: Message):
         plan_dt = time.monotonic() - t0
         plan_html = (plan_data or {}).get("message_html") if isinstance(plan_data, dict) else None
         plan_html = strip_ai_block(plan_html) if plan_html else plan_html
-        plan_extra = "\n\n<i>⏱ plan {:.1f}s</i>".format(plan_dt)
-        await safe_send_html(message, plan_html or "<i>Dexter unavailable</i>", plan_extra)
+        await safe_send_html(message, plan_html or "<i>Dexter unavailable</i>")
         access_service.consume(user_id, "analytics")
     except Exception:
         log.exception("free_text_dexter: plan-first failed q=%r sym=%r", q_clean, sym)
@@ -294,8 +293,7 @@ async def free_text_to_dexter(message: Message):
             ai_dt = time.monotonic() - t1
             ai_html = (ai_data or {}).get("message_html") if isinstance(ai_data, dict) else None
             ai_html = strip_ai_block(ai_html) if ai_html else ai_html
-            ai_extra = "\n\n<i>⏱ ai {:.1f}s</i>".format(ai_dt)
-            await safe_send_html(message, ai_html or "<i>AI empty</i>", ai_extra)
+            await safe_send_html(message, ai_html or "<i>AI empty</i>")
         except Exception:
             log.exception("free_text_dexter: ai follow-up failed q=%r sym=%r", q_clean, sym)
             await message.answer("🤖 AI: OFF • timeout/error")
